@@ -1,5 +1,6 @@
 # Addons de Odoo
 
-Este repositorio es una carpeta de addons. Puede alojar varios módulos; el módulo incluido es `kai_onchange_journal`.
+Este repositorio es una carpeta de addons. En el servidor, `addons_path` debe apuntar a la raíz de este repositorio, no a la carpeta de un módulo.
 
-En el servidor, `addons_path` debe apuntar a la raíz de este repositorio (la carpeta que contiene `kai_onchange_journal/`), no a la carpeta del módulo.
+- `kai_onchange_journal`: fuerza la moneda de la orden de compra según la moneda del diario.
+- `kai_purchase_requisition_reference_name`: muestra el acuerdo de compra como «PT00001 - referencia» y permite buscarlo por el campo `reference`.
