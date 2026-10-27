@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        App root in Odoo 19 CE: account.menu_finance
+        (source name "Invoicing" / "Facturación"; "Contabilidad" once the
+        accounting app is renamed, as in the target menu bar).
+        Action account.action_bank_statement_tree already exists in 19.0:
+        account.bank.statement, domain journal type bank, list view
+        account.view_bank_statement_tree (Referencia, Fecha, Diario,
+        Compañía, Saldo inicial, Saldo final).
+        Groups: full statement access is account.group_account_basic;
+        read-only accountants use account.group_account_readonly.
+        group_account_user implies both.
+    -->
+    <menuitem
+        id="menu_bank_statement"
+        name="Extractos bancarios"
+        parent="account.menu_finance"
+        action="account.action_bank_statement_tree"
+        sequence="5"
+        groups="account.group_account_basic,account.group_account_readonly"
+    />
+</odoo>
