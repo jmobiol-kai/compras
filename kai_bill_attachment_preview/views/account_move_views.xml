@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        Community account.view_move_form (Odoo 19):
+
+            <div class="o_attachment_preview"
+                 invisible="move_type not in ('out_invoice', 'out_refund', 'in_invoice', 'in_refund') or state != 'draft'" />
+            <chatter reload_on_attachment="True"/>
+
+        The state clause hides the supplier/customer PDF once the move is
+        posted. Enterprise keeps the preview for every invoice-type document.
+        Only that invisible condition changes; the chatter node stays as-is.
+        On XXL screens with an attachment, mail layout COMBO shows the PDF
+        beside the sheet and the chatter below.
+    -->
+    <record id="view_move_form_attachment_preview" model="ir.ui.view">
+        <field name="name">account.move.form.attachment.preview</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form/div[hasclass('o_attachment_preview')]" position="attributes">
+                <attribute name="invisible">move_type not in ('out_invoice', 'out_refund', 'in_invoice', 'in_refund')</attribute>
+            </xpath>
+        </field>
+    </record>
+</odoo>
