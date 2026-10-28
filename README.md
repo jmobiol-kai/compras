@@ -4,4 +4,4 @@ Este repositorio es una carpeta de addons. En el servidor, `addons_path` debe ap
 
 - `kai_onchange_journal`: fuerza la moneda de la orden de compra según la moneda del diario.
 - `kai_purchase_requisition_reference_name`: muestra el acuerdo de compra como «PT00001 - referencia» y permite buscarlo por el campo `reference`.
-- `kai_bank_statement_menu`: menú Contabilidad → Extractos bancarios. Abre el listado clásico de `account.bank.statement` (`account.action_bank_statement_tree`). Requiere en `addons_path` los módulos OCA `account_statement_base` y `account_reconcile_oca`.
+- `kai_bank_statement_menu`: menú Contabilidad → Extractos bancarios, caja y tarjetas. Lista `account.bank.statement` de diarios banco, caja y crédito (sin sustituir la acción de core `account.action_bank_statement_tree`) y habilita el origen de extractos y la importación OCA en diarios de caja. Requiere en `addons_path` los módulos OCA `account_statement_base`, `account_reconcile_oca`, `account_statement_import_file` y `account_statement_import_sheet_file`.

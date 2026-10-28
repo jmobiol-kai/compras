@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        Cash journals never show bank_statements_source in core: the field
+        lives in group bank_account_number (bank) and group bank_source
+        (credit). While it stays undefined, the dashboard button Import (OCA)
+        stays hidden. Credit already uses bank_source; reuse that group for cash.
+    -->
+    <record id="view_account_journal_form_cash_statements_source" model="ir.ui.view">
+        <field name="name">account.journal.form.cash.statements.source</field>
+        <field name="model">account.journal</field>
+        <field name="inherit_id" ref="account.view_account_journal_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[@name='bank_source']" position="attributes">
+                <attribute name="invisible">type not in ('credit', 'cash')</attribute>
+            </xpath>
+            <xpath expr="//group[@name='bank_source']/label[@for='bank_statements_source']" position="attributes">
+                <attribute name="invisible">type not in ('credit', 'cash')</attribute>
+            </xpath>
+            <xpath expr="//group[@name='bank_source']/field[@name='bank_statements_source']" position="attributes">
+                <attribute name="required">type in ('credit', 'cash')</attribute>
+            </xpath>
+        </field>
+    </record>
+
+    <!--
+        account_statement_import_sheet_file adds this group with
+        invisible="type != 'bank'". CSV import reads default_sheet_mapping_id
+        from the journal that opened the wizard, including cash.
+    -->
+    <record id="view_account_journal_form_sheet_mapping_cash" model="ir.ui.view">
+        <field name="name">account.journal.form.sheet.mapping.cash</field>
+        <field name="model">account.journal</field>
+        <field name="inherit_id" ref="account_statement_import_sheet_file.view_account_journal_form_n43"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='default_sheet_mapping_id']/parent::group" position="attributes">
+                <attribute name="invisible">type not in ('bank', 'cash', 'credit')</attribute>
+            </xpath>
+        </field>
+    </record>
+
+    <!--
+        The OCA dropdown link is inserted before div bank_customer_payment,
+        which the kanban menu already renders for bank, cash and credit.
+        Only t-if="journal_type == 'bank'" hides it. The primary
+        Import (OCA) button is gated by bank_statements_source, not journal type.
+        Core action account.action_bank_statement_tree is not modified.
+    -->
+    <record id="journal_dashboard_view_inherit_cash" model="ir.ui.view">
+        <field name="name">account.journal.dashboard.kanban.import.oca.cash</field>
+        <field name="model">account.journal</field>
+        <field name="inherit_id" ref="account_statement_import_file.journal_dashboard_view_inherit"/>
+        <field name="arch" type="xml">
+            <xpath expr="//a[@name='import_account_statement']/parent::div" position="attributes">
+                <attribute name="t-if">journal_type == 'bank' or journal_type == 'cash' or journal_type == 'credit'</attribute>
+            </xpath>
+        </field>
+    </record>
+</odoo>

@@ -4,19 +4,45 @@
         App root in Odoo 19 CE: account.menu_finance
         (source name "Invoicing" / "Facturación"; "Contabilidad" once the
         accounting app is renamed, as in the target menu bar).
-        Action account.action_bank_statement_tree already exists in 19.0:
-        account.bank.statement, domain journal type bank, list view
-        account.view_bank_statement_tree (Referencia, Fecha, Diario,
-        Compañía, Saldo inicial, Saldo final).
+
+        Do not override account.action_bank_statement_tree. Its domain stays
+        journal type bank because OCA and the journal dashboard reuse that
+        action for bank journals only. This module adds its own action so
+        Contabilidad lists bank, cash and credit statements together.
+        Core cash action account.action_view_bank_statement_tree is left as-is.
+
         Groups: full statement access is account.group_account_basic;
         read-only accountants use account.group_account_readonly.
         group_account_user implies both.
     -->
+    <record id="action_bank_cash_credit_statement_tree" model="ir.actions.act_window">
+        <field name="name">Extractos bancarios, caja y tarjetas</field>
+        <field name="res_model">account.bank.statement</field>
+        <field name="view_mode">list,pivot,graph,form</field>
+        <field name="domain">[('journal_id.type', 'in', ('bank', 'cash', 'credit'))]</field>
+        <field name="search_view_id" ref="account.view_bank_statement_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Registrar un extracto
+            </p>
+            <p>
+                Extractos de diarios de banco, caja y crédito.
+            </p>
+        </field>
+    </record>
+
+    <record id="action_bank_cash_credit_statement_tree_list" model="ir.actions.act_window.view">
+        <field name="sequence" eval="1"/>
+        <field name="view_mode">list</field>
+        <field name="view_id" ref="account.view_bank_statement_tree"/>
+        <field name="act_window_id" ref="action_bank_cash_credit_statement_tree"/>
+    </record>
+
     <menuitem
         id="menu_bank_statement"
-        name="Extractos bancarios"
+        name="Extractos bancarios, caja y tarjetas"
         parent="account.menu_finance"
-        action="account.action_bank_statement_tree"
+        action="action_bank_cash_credit_statement_tree"
         sequence="5"
         groups="account.group_account_basic,account.group_account_readonly"
     />
