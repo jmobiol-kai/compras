@@ -13,4 +13,31 @@
             </t>
         </xpath>
     </template>
+    <!-- Show contact phone + secondary contact / delivery address phone under the customer address.
+         Tel.            : customer (commercial partner) phone
+         Tel. contacto   : order contact when it is a child contact of the customer, or, when the order
+                           is addressed to the company itself, its first secondary contact with a phone
+         Tel. entrega    : delivery address (partner_shipping_id) phone when it is another partner
+         The same number is never printed twice. -->
+    <template id="report_saleorder_document_phones" inherit_id="sale.report_saleorder_document">
+        <xpath expr="//t[@t-set='address']" position="inside">
+            <t t-set="kai_main" t-value="doc.partner_id.commercial_partner_id"/>
+            <t t-set="kai_sec" t-value="doc.partner_id if doc.partner_id != kai_main else kai_main.child_ids.filtered_domain([('type', '=', 'contact'), ('phone', '!=', False)])[:1]"/>
+            <t t-set="kai_ship" t-value="doc.partner_shipping_id"/>
+            <t t-set="kai_main_ph" t-value="kai_main.phone or False"/>
+            <t t-set="kai_sec_ph" t-value="kai_sec and kai_sec.phone and kai_sec.phone != kai_main_ph and kai_sec.phone or False"/>
+            <t t-set="kai_ship_ph" t-value="kai_ship and kai_ship not in (kai_main | doc.partner_id) and kai_ship.phone and kai_ship.phone not in (kai_main_ph, kai_sec_ph) and kai_ship.phone or False"/>
+            <p t-if="kai_main_ph" class="mb-0 kai_so_phone">
+                <strong>Tel.:</strong> <span t-out="kai_main_ph"/>
+            </p>
+            <p t-if="kai_sec_ph" class="mb-0 kai_so_phone">
+                <strong>Tel. contacto:</strong> <span t-out="kai_sec_ph"/>
+                <span class="text-muted">(<t t-out="kai_sec.name"/>)</span>
+            </p>
+            <p t-if="kai_ship_ph" class="mb-0 kai_so_phone">
+                <strong>Tel. entrega:</strong> <span t-out="kai_ship_ph"/>
+                <span class="text-muted">(<t t-out="kai_ship.name"/>)</span>
+            </p>
+        </xpath>
+    </template>
 </odoo>
