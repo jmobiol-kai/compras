@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_order_form_tags_header" model="ir.ui.view">
+        <field name="name">sale.order.form.kai.tags.header</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <!-- Move Etiquetas from "Otra información" into the header, before the statusbar -->
+            <xpath expr="//header/field[@name='state']" position="before">
+                <xpath expr="//sheet//field[@name='tag_ids']" position="move"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>
