@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Show sale order tags (Etiquetas) next to the quotation/order number on the PDF -->
+    <template id="report_saleorder_document_tags" inherit_id="sale.report_saleorder_document">
+        <xpath expr="//t[@t-set='layout_document_title']/span[@t-field='doc.name']" position="after">
+            <t t-if="doc.tag_ids">
+                <t t-set="kai_tag_palette" t-value="['#6c757d', '#F06050', '#F4A460', '#F7CD1F', '#6CC1ED', '#814968', '#EB7E7F', '#2C8397', '#475577', '#D6145F', '#30C381', '#9365B8']"/>
+                <t t-foreach="doc.tag_ids" t-as="kai_tag">
+                    <span class="kai_so_tag"
+                          t-att-style="'display: inline-block; margin-left: 6px; padding: 2px 8px; border-radius: 10px; font-size: 0.55em; font-weight: normal; vertical-align: middle; color: #ffffff; background-color: %s;' % kai_tag_palette[(kai_tag.color or 0) % 12]"
+                          t-out="kai_tag.name"/>
+                </t>
+            </t>
+        </xpath>
+    </template>
+</odoo>
