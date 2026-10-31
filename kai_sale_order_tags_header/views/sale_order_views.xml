@@ -11,4 +11,30 @@
             </xpath>
         </field>
     </record>
+
+    <!-- priority 32: sale_stock (16) replaces div[@name='commitment_date_div'],
+         which would drop an invisible flag set on the original node. -->
+    <record id="view_order_form_commitment_date_header" model="ir.ui.view">
+        <field name="name">sale.order.form.kai.commitment.date.header</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="priority" eval="32"/>
+        <field name="arch" type="xml">
+            <!-- Fecha de entrega next to Fecha de la orden (the order-date field is the last date_order in this group). -->
+            <xpath expr="//group[@name='order_details']/field[@name='date_order'][last()]" position="after">
+                <field name="commitment_date" readonly="state == 'cancel' or locked"/>
+            </xpath>
+            <!-- One editable delivery date. The expected-date hint stays in Delivery,
+                 on its own row so hiding the label does not shift the fields below. -->
+            <xpath expr="//page[@name='other_information']//label[@for='commitment_date']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//page[@name='other_information']//field[@name='commitment_date']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//page[@name='other_information']//div[field[@name='commitment_date']]" position="attributes">
+                <attribute name="colspan">2</attribute>
+            </xpath>
+        </field>
+    </record>
 </odoo>
