@@ -198,8 +198,15 @@ class TestKaiPosCashMovePartner(TestPoSCommon):
         self.assertNotIn(bill.id, [row['id'] for row in invoices])
         partners = self.pos_session.kai_search_cash_move_partners('Proveedor POS')
         self.assertIn(self.vendor.id, [row['id'] for row in partners])
+        # One letter is a valid query (no minimum length). The RPC still
+        # returns at most 20 rows, so a common letter must not be expected
+        # to include a specific partner.
         one_letter = self.pos_session.kai_search_cash_move_partners('P')
-        self.assertIn(self.vendor.id, [row['id'] for row in one_letter])
+        self.assertTrue(one_letter)
+        self.assertLessEqual(len(one_letter), 20)
+        needle = self.env['res.partner'].create({'name': 'Zz9KaiCashMove'})
+        found = self.pos_session.kai_search_cash_move_partners('Zz9')
+        self.assertIn(needle.id, [row['id'] for row in found])
         opened = self.pos_session.kai_search_cash_move_partners('')
         self.assertTrue(opened)
         self.assertLessEqual(len(opened), 20)
