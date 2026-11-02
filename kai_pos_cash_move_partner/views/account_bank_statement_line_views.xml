@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="pos_cash_move_partner_view_list_contact" model="ir.ui.view">
+        <field name="name">account.bank.statement.line.kai.cash.move.contact</field>
+        <field name="model">account.bank.statement.line</field>
+        <field name="inherit_id" ref="oo_pos_cash_move_partner.pos_cash_move_partner_view_list"/>
+        <field name="arch" type="xml">
+            <field name="partner_id" position="after">
+                <field name="cash_move_contact_id" optional="show"/>
+            </field>
+            <field name="vendor_bill_id" position="after">
+                <field name="vendor_bill_ids" widget="many2many_tags" optional="show"/>
+            </field>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,10 @@
+.kai-cash-move-partner {
+    border-top: 1px solid var(--bs-border-color, #dee2e6);
+    padding-top: 0.75rem;
+
+    .kai-cash-move-options,
+    .kai-partner-results {
+        max-height: 11rem;
+        overflow-y: auto;
+    }
+}
