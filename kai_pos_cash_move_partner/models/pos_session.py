@@ -62,21 +62,26 @@ class PosSession(models.Model):
             raise UserError(_('Esta sesión no tiene diario de caja.'))
 
     def kai_search_cash_move_partners(self, query):
-        """Partners the cashier can attach to this session's cash move."""
+        """Partners for the POS contact combobox.
+
+        An empty query is the dropdown opening: the first contacts by name.
+        Any text filters by name, VAT, reference or email.
+        """
         self.ensure_one()
         self._kai_check_cash_move_access()
         query = (query or '').strip()[:80]
-        if len(query) < 2:
-            return []
         domain = [
             ('active', '=', True),
             '|', ('company_id', '=', False), ('company_id', '=', self.company_id.id),
-            '|', '|', '|',
-            ('name', 'ilike', query),
-            ('vat', 'ilike', query),
-            ('ref', 'ilike', query),
-            ('email', 'ilike', query),
         ]
+        if query:
+            domain += [
+                '|', '|', '|',
+                ('name', 'ilike', query),
+                ('vat', 'ilike', query),
+                ('ref', 'ilike', query),
+                ('email', 'ilike', query),
+            ]
         partners = self.env['res.partner'].search(domain, limit=20, order='name, id')
         return [{
             'id': partner.id,
