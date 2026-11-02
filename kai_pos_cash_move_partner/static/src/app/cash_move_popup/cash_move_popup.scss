@@ -2,9 +2,22 @@
     border-top: 1px solid var(--bs-border-color, #dee2e6);
     padding-top: 0.75rem;
 
-    .kai-cash-move-options,
-    .kai-partner-results {
+    .kai-cash-move-options {
         max-height: 11rem;
         overflow-y: auto;
+    }
+
+    // SelectMenu ships with w-auto. The cash popup field should fill the row,
+    // and the caret has to stay visible: it is the combobox affordance.
+    .kai-partner-combobox .o_select_menu {
+        width: 100%;
+
+        .o_select_menu_toggler {
+            width: 100%;
+        }
+
+        .o_select_menu_caret {
+            visibility: visible;
+        }
     }
 }

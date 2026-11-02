@@ -198,7 +198,11 @@ class TestKaiPosCashMovePartner(TestPoSCommon):
         self.assertNotIn(bill.id, [row['id'] for row in invoices])
         partners = self.pos_session.kai_search_cash_move_partners('Proveedor POS')
         self.assertIn(self.vendor.id, [row['id'] for row in partners])
-        self.assertFalse(self.pos_session.kai_search_cash_move_partners('P'))
+        one_letter = self.pos_session.kai_search_cash_move_partners('P')
+        self.assertIn(self.vendor.id, [row['id'] for row in one_letter])
+        opened = self.pos_session.kai_search_cash_move_partners('')
+        self.assertTrue(opened)
+        self.assertLessEqual(len(opened), 20)
         journals = self.pos_session.kai_list_cash_move_dest_journals()
         journal_ids = [row['id'] for row in journals]
         self.assertNotIn(self.pos_session.cash_journal_id.id, journal_ids)

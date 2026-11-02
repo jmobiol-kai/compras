@@ -7,35 +7,17 @@
         </xpath>
         <xpath expr="//textarea[@id='reason']/parent::div" position="after">
             <div class="kai-cash-move-partner mt-3 d-flex flex-column gap-2">
-                <div class="d-flex gap-2 align-items-end">
-                    <div class="flex-grow-1">
-                        <label class="form-label mb-1" for="kai_cash_move_partner">Contacto</label>
-                        <input id="kai_cash_move_partner"
-                               class="form-control"
-                               type="text"
-                               autocomplete="off"
-                               placeholder="Buscar contacto..."
-                               t-model="state.partnerQuery"
-                               t-on-input="onPartnerInput"/>
-                    </div>
-                    <button t-if="state.partnerId"
-                            type="button"
-                            class="btn btn-secondary"
-                            t-on-click="clearPartner">
-                        Quitar
-                    </button>
-                </div>
-                <div t-if="state.searchingPartners" class="text-muted small">Buscando...</div>
-                <div t-if="state.partners.length" class="list-group kai-partner-results">
-                    <button t-foreach="state.partners"
-                            t-as="partnerOption"
-                            t-key="partnerOption.id"
-                            type="button"
-                            class="list-group-item list-group-item-action py-2"
-                            t-on-click="() => this.selectPartner(partnerOption)">
-                        <t t-esc="partnerOption.name"/>
-                        <span t-if="partnerOption.vat" class="text-muted"> · <t t-esc="partnerOption.vat"/></span>
-                    </button>
+                <div class="kai-partner-combobox">
+                    <label class="form-label mb-1" for="kai_cash_move_partner">Contacto</label>
+                    <SelectMenu
+                        id="'kai_cash_move_partner'"
+                        class="'w-100'"
+                        choices="state.partnerChoices"
+                        value="state.partnerId"
+                        placeholder="'Buscar contacto...'"
+                        searchPlaceholder="'Buscar contacto...'"
+                        onInput.bind="onPartnerSearch"
+                        onSelect.bind="onPartnerSelect"/>
                 </div>
 
                 <div t-if="state.partnerId and !state.destJournalId and (state.loadingMoves or state.moves.length)">

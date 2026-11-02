@@ -1,8 +1,16 @@
 /** @odoo-module */
 
 import { CashMovePopup } from "@point_of_sale/app/components/popups/cash_move_popup/cash_move_popup";
+import { SelectMenu } from "@web/core/select_menu/select_menu";
 import { patch } from "@web/core/utils/patch";
 import { onWillUnmount } from "@odoo/owl";
+
+patch(CashMovePopup, {
+    components: {
+        ...CashMovePopup.components,
+        SelectMenu,
+    },
+});
 
 patch(CashMovePopup.prototype, {
     setup() {
@@ -11,20 +19,17 @@ patch(CashMovePopup.prototype, {
         this._moveRequest = 0;
         this._partnerRequest = 0;
         Object.assign(this.state, {
-            partnerQuery: "",
             partnerId: false,
             partnerName: "",
-            partners: [],
+            partnerChoices: [],
             moves: [],
             selectedMoveIds: [],
             journals: [],
             destJournalId: false,
             loadingMoves: false,
-            searchingPartners: false,
         });
         onWillUnmount(() => {
             this._alive = false;
-            clearTimeout(this._partnerSearchTimer);
         });
         this.loadDestJournals();
     },
@@ -58,58 +63,39 @@ patch(CashMovePopup.prototype, {
         return result;
     },
 
-    onPartnerInput(ev) {
-        this.state.partnerQuery = ev.target.value;
-        if (this.state.partnerId) {
-            this.state.partnerId = false;
-            this.state.partnerName = "";
-            this.state.moves = [];
-            this.state.selectedMoveIds = [];
-        }
-        clearTimeout(this._partnerSearchTimer);
-        this._partnerSearchTimer = setTimeout(() => this.searchPartners(), 300);
-    },
-
-    async searchPartners() {
-        const query = (this.state.partnerQuery || "").trim();
-        if (query.length < 2) {
-            this.state.partners = [];
-            this.state.searchingPartners = false;
-            return;
-        }
+    /**
+     * SelectMenu calls this when the dropdown opens (empty string) and as
+     * the cashier types. The widget already debounces keystrokes.
+     */
+    async onPartnerSearch(query) {
         const request = ++this._partnerRequest;
-        this.state.searchingPartners = true;
         try {
             const partners = await this.pos.data.call(
                 "pos.session",
                 "kai_search_cash_move_partners",
-                [[this.pos.session.id], query]
+                [[this.pos.session.id], query || ""]
             );
             if (!this._alive || request !== this._partnerRequest) {
                 return;
             }
-            this.state.partners = partners || [];
+            this.state.partnerChoices = this._partnerChoices(partners || []);
         } catch (error) {
             if (!this._alive || request !== this._partnerRequest) {
                 return;
             }
-            this.state.partners = [];
+            this.state.partnerChoices = this._partnerChoices([]);
             this.notification.add(this._rpcMessage(error, "No se pudieron buscar contactos."));
-        } finally {
-            if (this._alive && request === this._partnerRequest) {
-                this.state.searchingPartners = false;
-            }
         }
     },
 
-    selectPartner(partner) {
-        clearTimeout(this._partnerSearchTimer);
-        this._partnerRequest += 1;
-        this.state.partnerId = partner.id;
-        this.state.partnerName = partner.name;
-        this.state.partnerQuery = partner.name;
-        this.state.partners = [];
-        this.state.searchingPartners = false;
+    onPartnerSelect(value) {
+        if (!value) {
+            this.clearPartner();
+            return;
+        }
+        const choice = this.state.partnerChoices.find((item) => item.value === value);
+        this.state.partnerId = value;
+        this.state.partnerName = choice ? choice.label : this.state.partnerName;
         this.state.selectedMoveIds = [];
         this.loadOpenMoves();
     },
@@ -117,11 +103,25 @@ patch(CashMovePopup.prototype, {
     clearPartner() {
         this.state.partnerId = false;
         this.state.partnerName = "";
-        this.state.partnerQuery = "";
-        this.state.partners = [];
         this.state.moves = [];
         this.state.selectedMoveIds = [];
-        this.state.searchingPartners = false;
+    },
+
+    _partnerChoices(partners) {
+        const choices = partners.map((partner) => ({
+            value: partner.id,
+            label: partner.vat ? `${partner.name} · ${partner.vat}` : partner.name,
+        }));
+        if (
+            this.state.partnerId &&
+            !choices.some((choice) => choice.value === this.state.partnerId)
+        ) {
+            choices.unshift({
+                value: this.state.partnerId,
+                label: this.state.partnerName || "",
+            });
+        }
+        return choices;
     },
 
     async loadOpenMoves() {
