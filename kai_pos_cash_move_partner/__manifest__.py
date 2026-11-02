@@ -4,7 +4,7 @@
         'El cajero asigna contacto, facturas o diario destino al confirmar '
         'la entrada o salida de efectivo'
     ),
-    'version': '19.0.1.1.0',
+    'version': '19.0.1.1.1',
     'category': 'Sales/Point of Sale',
     'author': 'Kaizendo',
     'license': 'LGPL-3',
