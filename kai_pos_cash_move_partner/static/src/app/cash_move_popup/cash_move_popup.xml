@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+
+    <t t-name="kai_pos_cash_move_partner.CashMovePopup" t-inherit="point_of_sale.CashMovePopup" t-inherit-mode="extension">
+        <xpath expr="//Dialog" position="attributes">
+            <attribute name="size">lg</attribute>
+        </xpath>
+        <xpath expr="//textarea[@id='reason']/parent::div" position="after">
+            <div class="kai-cash-move-partner mt-3 d-flex flex-column gap-2">
+                <div class="d-flex gap-2 align-items-end">
+                    <div class="flex-grow-1">
+                        <label class="form-label mb-1" for="kai_cash_move_partner">Contacto</label>
+                        <input id="kai_cash_move_partner"
+                               class="form-control"
+                               type="text"
+                               autocomplete="off"
+                               placeholder="Buscar contacto..."
+                               t-model="state.partnerQuery"
+                               t-on-input="onPartnerInput"/>
+                    </div>
+                    <button t-if="state.partnerId"
+                            type="button"
+                            class="btn btn-secondary"
+                            t-on-click="clearPartner">
+                        Quitar
+                    </button>
+                </div>
+                <div t-if="state.searchingPartners" class="text-muted small">Buscando...</div>
+                <div t-if="state.partners.length" class="list-group kai-partner-results">
+                    <button t-foreach="state.partners"
+                            t-as="partnerOption"
+                            t-key="partnerOption.id"
+                            type="button"
+                            class="list-group-item list-group-item-action py-2"
+                            t-on-click="() => this.selectPartner(partnerOption)">
+                        <t t-esc="partnerOption.name"/>
+                        <span t-if="partnerOption.vat" class="text-muted"> · <t t-esc="partnerOption.vat"/></span>
+                    </button>
+                </div>
+
+                <div t-if="state.partnerId and !state.destJournalId and (state.loadingMoves or state.moves.length)">
+                    <div class="form-label mb-1">Facturas</div>
+                    <div t-if="state.loadingMoves" class="text-muted small">Cargando facturas...</div>
+                    <div t-if="state.moves.length" class="kai-cash-move-options d-flex flex-column gap-1">
+                        <div t-foreach="state.moves" t-as="move" t-key="move.id" class="form-check">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   t-att-id="'kai_cash_move_' + move.id"
+                                   t-att-checked="this.isMoveSelected(move.id)"
+                                   t-on-change="() => this.toggleMove(move.id)"/>
+                            <label class="form-check-label" t-att-for="'kai_cash_move_' + move.id">
+                                <t t-esc="move.name"/>
+                                <t t-if="move.invoice_date"> · <t t-esc="move.invoice_date"/></t>
+                                · <t t-esc="move.amount_residual_display"/>
+                                <span t-if="move.payment_state === 'partial'" class="text-muted"> (parcial)</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div t-if="this.showOnAccount()" class="text-muted small">
+                    <span class="fw-semibold">Pago a cuenta</span>
+                    <t t-if="!state.moves.length">. No hay facturas abiertas.</t>
+                    <t t-else="">. Si no elegís facturas, el monto queda a cuenta de este contacto.</t>
+                </div>
+                <div t-if="state.partnerId and !state.destJournalId and state.selectedMoveIds.length" class="text-muted small">
+                    Se aplica primero a la más vieja. Lo que sobre queda como pago a cuenta.
+                </div>
+
+                <div>
+                    <label class="form-label mb-1" for="kai_cash_move_journal">Diario destino</label>
+                    <select id="kai_cash_move_journal"
+                            class="form-select"
+                            t-on-change="onDestJournalChange">
+                        <option value="">Sin otro diario</option>
+                        <option t-foreach="state.journals"
+                                t-as="journal"
+                                t-key="journal.id"
+                                t-att-value="journal.id"
+                                t-att-selected="state.destJournalId === journal.id">
+                            <t t-esc="journal.name"/>
+                        </option>
+                    </select>
+                </div>
+                <div t-if="state.destJournalId" class="text-muted small">
+                    La plata pasa a ese diario. No se aplican facturas.
+                </div>
+            </div>
+        </xpath>
+    </t>
+
+</templates>
