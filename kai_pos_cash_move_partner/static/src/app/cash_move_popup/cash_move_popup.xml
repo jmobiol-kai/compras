@@ -10,6 +10,7 @@
                 <div class="kai-partner-combobox">
                     <label class="form-label mb-1" for="kai_cash_move_partner">Contacto</label>
                     <SelectMenu
+                        t-key="state.type"
                         id="'kai_cash_move_partner'"
                         class="'w-100'"
                         choices="state.partnerChoices"
@@ -53,8 +54,10 @@
                     <label class="form-label mb-1" for="kai_cash_move_journal">Diario destino</label>
                     <select id="kai_cash_move_journal"
                             class="form-select"
+                            t-key="state.type"
+                            t-att-value="state.destJournalId || ''"
                             t-on-change="onDestJournalChange">
-                        <option value="">Sin otro diario</option>
+                        <option value="" t-att-selected="!state.destJournalId">Sin otro diario</option>
                         <option t-foreach="state.journals"
                                 t-as="journal"
                                 t-key="journal.id"
