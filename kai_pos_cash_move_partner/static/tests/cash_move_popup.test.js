@@ -138,3 +138,44 @@ test("cash out hides the destination journal until a contact is chosen", async (
     expect("#kai_cash_move_journal").toHaveCount(0);
     expect("#kai_cash_move_journal_locked").toHaveCount(1);
 });
+
+test("cash in with a contact and no invoice is pago a cuenta", async () => {
+    const store = await setupPosEnv();
+    store.data.call = async (model, method) => {
+        if (method === "kai_list_cash_move_dest_journals") {
+            return [{ id: 3, name: "Banco" }];
+        }
+        return [];
+    };
+    const popup = await mountWithCleanup(CashMovePopup, {
+        props: { close: () => {} },
+    });
+    await animationFrame();
+    popup.onClickButton("in");
+    await animationFrame();
+    popup.state.partnerId = 9;
+    popup.state.partnerName = "Cliente";
+    popup.state.moves = [{ id: 8, name: "FAC/008", amount_residual_display: "$ 10" }];
+    popup.state.selectedMoveIds = [];
+    popup.state.loadingMoves = false;
+    await animationFrame();
+
+    expect(popup.showOnAccount()).toBe(true);
+    expect(popup.confirmWaitsForOpenMoves()).toBe(false);
+    const note = popup.el.querySelector(".kai-cash-move-partner").textContent;
+    expect(note.includes("recibo del cliente")).toBe(true);
+    expect(note.includes("memo")).toBe(true);
+    const payload = popup._prepareTryCashInOutPayload("in", 15, "Seña cumpleaños", 1, {
+        translatedType: "in",
+    });
+    const extras = payload.at(-1);
+    expect(payload[3]).toBe("Seña cumpleaños");
+    expect(extras.cash_partner_id).toBe(9);
+    expect(extras.move_ids).toBe(undefined);
+    expect(extras.dest_journal_id).toBe(undefined);
+
+    popup.state.loadingMoves = true;
+    await animationFrame();
+    expect(popup.confirmWaitsForOpenMoves()).toBe(true);
+    expect(popup.showOnAccount()).toBe(false);
+});

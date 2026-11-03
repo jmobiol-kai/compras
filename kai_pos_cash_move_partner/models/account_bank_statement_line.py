@@ -27,6 +27,15 @@ class AccountBankStatementLine(models.Model):
         help='Contacto comercial del asiento. En la línea de caja, Quién '
              'sigue siendo el cajero cuando el movimiento se confirma en el POS.',
     )
+    kai_on_account_payment_id = fields.Many2one(
+        comodel_name='account.payment',
+        string='Recibo a cuenta',
+        readonly=True,
+        copy=False,
+        ondelete='restrict',
+        help='Recibo de cliente generado por una entrada con contacto y sin '
+             'factura. Queda abierto para imputar.',
+    )
 
     def _check_vendor_bill(self, partner, bill):
         """Allow a POS cash-out to leave the surplus on the payable account.
@@ -59,7 +68,11 @@ class AccountBankStatementLine(models.Model):
             raise UserError(_('Esa factura ya está pagada.'))
 
     def _undo_cash_move_partner(self):
-        super()._undo_cash_move_partner()
+        self.ensure_one()
+        if self.kai_on_account_payment_id:
+            self._kai_undo_on_account_payment()
+        else:
+            super()._undo_cash_move_partner()
         if self.vendor_bill_ids:
             self.sudo().with_context(skip_account_move_synchronization=True).write({
                 'vendor_bill_ids': [Command.clear()],
@@ -89,15 +102,228 @@ class AccountBankStatementLine(models.Model):
                 raise UserError(_('Esas facturas no son de proveedor.'))
             return self._kai_assign_vendor_bills(partner, moves)
         if self.cash_move_partner_direction == 'customer':
-            return self._kai_assign_customer_invoices(partner, moves)
+            return self._kai_assign_customer_invoices(
+                partner, moves, extras.get('kai_reason') or '',
+            )
         raise UserError(_('Este movimiento no se puede usar.'))
 
-    def _kai_assign_customer_invoices(self, partner, invoices):
+    def _kai_assign_customer_invoices(self, partner, invoices, reason=''):
+        """Collect selected invoices, or open a customer receipt on account.
+
+        OnlyOne's assignment with no invoices reclasses the suspense line to
+        the receivable. That credit sits on the cash move itself, so it is
+        not a receipt and it has no memo to impute later. A cash in with a
+        contact and no invoice becomes an ``account.payment`` instead. The
+        cashier's note is the receipt memo.
+        """
         self.ensure_one()
         invoices = invoices or self.env['account.move']
         if invoices.filtered(lambda move: move.move_type != 'out_invoice'):
             raise UserError(_('Esas facturas no son de cliente.'))
+        if not invoices:
+            return self._kai_create_customer_on_account_payment(partner, reason)
         return self._assign_cash_move_to_partner(partner, invoices=invoices)
+
+    def _kai_create_customer_on_account_payment(self, partner, reason):
+        """Post a customer receipt and match it to this cash in.
+
+        The statement line keeps the only cash debit, so the drawer is not
+        counted twice. The receipt's receivable stays open: nothing is
+        reconciled to invoices the cashier left unselected. A bridge account
+        (outstanding receipts, or the journal suspense) ties the two entries.
+        """
+        self.ensure_one()
+        self._check_cash_move_open()
+        self._check_customer_invoices(partner, self.env['account.move'])
+        commercial = partner.commercial_partner_id
+        bridge = self._kai_on_account_bridge_account()
+        receivable = commercial.with_company(self.company_id).property_account_receivable_id
+        if not receivable:
+            raise UserError(_('No se puede anotar este cobro para ese cliente.'))
+        reason = reason.strip() if isinstance(reason, str) else ''
+        payment = self._kai_post_on_account_payment(commercial, bridge, receivable, reason)
+        self._kai_match_statement_to_on_account_payment(payment, commercial, bridge)
+        self._kai_check_on_account_payment_open(payment, receivable, reason)
+        return True
+
+    def _kai_post_on_account_payment(self, commercial, bridge, receivable, reason):
+        self.ensure_one()
+        payment_model = self.env['account.payment']
+        vals = {
+            'payment_type': 'inbound',
+            'partner_type': 'customer',
+            'partner_id': commercial.id,
+            'amount': abs(self.amount),
+            'date': self.date,
+            'journal_id': self.journal_id.id,
+            'company_id': self.company_id.id,
+            'currency_id': self.currency_id.id,
+            'memo': reason,
+            'destination_account_id': receivable.id,
+            'force_outstanding_account_id': bridge.id,
+            'pos_session_id': self.pos_session_id.id,
+        }
+        # account_payment_pro fills every open invoice unless this is set, and
+        # it also skips that fill when the payment is tied to a POS session.
+        if 'skip_to_pay_autofill' in payment_model._fields:
+            vals['skip_to_pay_autofill'] = True
+        payment = payment_model.sudo().with_company(self.company_id).with_context(
+            pos_payment=True,
+        ).create(vals)
+        payment.action_post()
+        if payment.memo != reason:
+            payment.memo = reason
+        if not payment.move_id or payment.move_id.state != 'posted':
+            raise UserError(_('No se pudo confirmar el recibo a cuenta.'))
+        if payment.outstanding_account_id != bridge:
+            raise UserError(_('No se pudo anotar el recibo en la cuenta puente.'))
+        return payment
+
+    def _kai_match_statement_to_on_account_payment(self, payment, commercial, bridge):
+        self.ensure_one()
+        ctx = {
+            'skip_account_move_synchronization': True,
+            'skip_readonly_check': True,
+        }
+        st_line = self.sudo()
+        liquidity, suspense, other = st_line._seek_for_lines()
+        if len(liquidity) != 1 or len(suspense) != 1 or other:
+            raise UserError(_('Este movimiento no se puede usar.'))
+        st_line.move_id.with_context(**ctx).write({
+            'partner_id': commercial.id,
+            'line_ids': [
+                Command.update(suspense.id, {
+                    'account_id': bridge.id,
+                    'partner_id': commercial.id,
+                }),
+                Command.update(liquidity.id, {'partner_id': commercial.id}),
+            ],
+        })
+        statement_bridge = st_line.move_id.line_ids.filtered(
+            lambda line: line.account_id == bridge
+        )
+        payment_bridge = payment.move_id.line_ids.filtered(
+            lambda line: line.account_id == bridge and not line.reconciled
+        )
+        if len(statement_bridge) != 1 or len(payment_bridge) != 1:
+            raise UserError(_('No se pudo cruzar el recibo con la entrada de caja.'))
+        if self.currency_id.compare_amounts(
+            abs(statement_bridge.amount_currency), abs(payment_bridge.amount_currency),
+        ) != 0:
+            raise UserError(_('El recibo no coincide con el monto de la entrada.'))
+        (statement_bridge | payment_bridge).with_context(**ctx).reconcile()
+        if not statement_bridge.reconciled or not payment_bridge.reconciled:
+            raise UserError(_('No se pudo cruzar el recibo con la entrada de caja.'))
+        st_line.with_context(**ctx).write({
+            'kai_on_account_payment_id': payment.id,
+            'customer_invoice_ids': [Command.clear()],
+            'vendor_bill_id': False,
+            'cash_move_assigned': True,
+        })
+
+    def _kai_check_on_account_payment_open(self, payment, receivable, reason):
+        """The receipt must stay imputable: full residual, no invoice matched."""
+        self.ensure_one()
+        credit = payment.move_id.line_ids.filtered(
+            lambda line: line.account_id == receivable
+        )
+        if len(credit) != 1 or credit.reconciled or credit.matched_debit_ids:
+            raise UserError(_('El recibo a cuenta no quedó abierto para imputar.'))
+        if self.currency_id.compare_amounts(
+            abs(credit.amount_residual_currency), abs(self.amount),
+        ) != 0:
+            raise UserError(_('El recibo a cuenta no quedó abierto para imputar.'))
+        if (payment.memo or '') != reason:
+            raise UserError(_('El motivo no quedó en el memo del recibo.'))
+
+    def _kai_on_account_bridge_account(self):
+        """Reconcilable account that is not the cash account of this journal."""
+        self.ensure_one()
+        cash = self.journal_id.default_account_id
+        probe = self.env['account.payment'].with_company(self.company_id).new({
+            'company_id': self.company_id.id,
+            'journal_id': self.journal_id.id,
+            'payment_type': 'inbound',
+        })
+        try:
+            outstanding = probe._get_outstanding_account('inbound')
+        except UserError:
+            outstanding = self.env['account.account']
+        for account in (outstanding, self.journal_id.suspense_account_id):
+            if self._kai_bridge_account_ok(account, cash):
+                return account
+        raise UserError(_(
+            'No se puede anotar el pago a cuenta: falta una cuenta puente '
+            'conciliable, distinta de la caja.'
+        ))
+
+    def _kai_bridge_account_ok(self, account, cash):
+        self.ensure_one()
+        return bool(
+            account
+            and account.reconcile
+            and account != cash
+            and account.account_type not in ('asset_cash', 'liability_credit_card')
+        )
+
+    def _kai_undo_on_account_payment(self):
+        """Drop the receipt and put the cash line back on suspense.
+
+        Refuses when the receipt was already imputed, so undoing the cash
+        move does not silently unapply a customer invoice.
+        """
+        self.ensure_one()
+        payment = self.kai_on_account_payment_id.sudo()
+        receivable_lines = payment.move_id.line_ids.filtered(
+            lambda line: line.account_id.account_type == 'asset_receivable'
+        )
+        if receivable_lines.matched_debit_ids or receivable_lines.matched_credit_ids:
+            raise UserError(_(
+                'Ese recibo ya se imputó a una factura. '
+                'Sacá esa imputación antes de deshacer el movimiento.'
+            ))
+        bridge = payment.outstanding_account_id
+        st_line = self.sudo()
+        ctx = {
+            'skip_account_move_synchronization': True,
+            'skip_readonly_check': True,
+        }
+        bridge_lines = (st_line.move_id.line_ids | payment.move_id.line_ids).filtered(
+            lambda line: line.account_id == bridge
+        )
+        if bridge_lines:
+            bridge_lines.remove_move_reconcile()
+        suspense_account = st_line.journal_id.suspense_account_id
+        liquidity, suspense_lines, other = st_line._seek_for_lines()
+        counterpart = (suspense_lines | other).filtered(
+            lambda line: line.account_id == bridge
+        )[:1]
+        if not counterpart:
+            counterpart = (other or suspense_lines)[:1]
+        if len(liquidity) != 1 or not counterpart or not suspense_account:
+            raise UserError(_('Este movimiento no se puede usar.'))
+        st_line.move_id.with_context(**ctx).write({
+            'partner_id': False,
+            'line_ids': [
+                Command.update(counterpart.id, {
+                    'account_id': suspense_account.id,
+                    'partner_id': False,
+                }),
+                Command.update(liquidity.id, {'partner_id': False}),
+            ],
+        })
+        st_line.with_context(**ctx).write({
+            'partner_id': False,
+            'vendor_bill_id': False,
+            'customer_invoice_ids': [Command.clear()],
+            'cash_move_type_id': False,
+            'cash_move_journal_id': False,
+            'cash_move_mirror_line_id': False,
+            'kai_on_account_payment_id': False,
+            'cash_move_assigned': False,
+        })
+        if payment.state != 'canceled':
+            payment.action_cancel()
 
     def _kai_assign_vendor_bills(self, partner, bills):
         """Pay the oldest bill through OnlyOne, then the remainder.

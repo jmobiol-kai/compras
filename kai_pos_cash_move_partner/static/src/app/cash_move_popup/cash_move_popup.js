@@ -59,7 +59,8 @@ patch(CashMovePopup.prototype, {
     /**
      * Cashier stays in the core partner argument. The commercial contact,
      * documents and destination journal go in extras, same slot pos_hr uses
-     * for employee_id.
+     * for employee_id. The note is the core reason argument; the server copies
+     * it into the receipt memo when the cash in is a pago a cuenta.
      */
     _prepareTryCashInOutPayload() {
         const result = super._prepareTryCashInOutPayload(...arguments);
@@ -78,6 +79,24 @@ patch(CashMovePopup.prototype, {
             result[index] = { ...result[index], ...assign };
         }
         return result;
+    },
+
+    /**
+     * A contact is already chosen and its invoices are still loading. Confirming
+     * now would drop the comprobantes and book a pago a cuenta by accident.
+     */
+    confirmWaitsForOpenMoves() {
+        return Boolean(
+            this.state.partnerId && !this.state.destJournalId && this.state.loadingMoves
+        );
+    },
+
+    async confirm() {
+        if (this.confirmWaitsForOpenMoves()) {
+            this.notification.add("Esperá a que carguen las facturas antes de confirmar.");
+            return;
+        }
+        return super.confirm(...arguments);
     },
 
     /**

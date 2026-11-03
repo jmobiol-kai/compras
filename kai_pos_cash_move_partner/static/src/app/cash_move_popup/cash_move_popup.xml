@@ -41,7 +41,13 @@
                     </div>
                 </div>
 
-                <div t-if="this.showOnAccount()" class="text-muted small">
+                <div t-if="this.showOnAccount() and state.type === 'in'" class="text-muted small">
+                    <span class="fw-semibold">Pago a cuenta</span>.
+                    Se genera un recibo del cliente. El motivo queda en el memo y se puede imputar después.
+                    <t t-if="!state.moves.length"> No hay facturas abiertas.</t>
+                    <t t-else=""> Si no elegís facturas, no se imputan ahora.</t>
+                </div>
+                <div t-if="this.showOnAccount() and state.type !== 'in'" class="text-muted small">
                     <span class="fw-semibold">Pago a cuenta</span>
                     <t t-if="!state.moves.length">. No hay facturas abiertas.</t>
                     <t t-else="">. Si no elegís facturas, el monto queda a cuenta de este contacto.</t>
