@@ -40,4 +40,15 @@
             </p>
         </xpath>
     </template>
+    <!-- Core prints commitment_date with widget "date", which drops the time
+         (22:00 UTC becomes "03/11/2026" instead of "03/11/2026 19:00").
+         Quotation, order and proforma all call this template. Keep the
+         "Delivery Date" / "Fecha de entrega" label. Pin the timezone so a
+         mail or cron render (often UTC, no user tz) still shows the
+         salesperson's clock, falling back to Argentina. -->
+    <template id="report_saleorder_document_delivery_datetime" inherit_id="sale.report_saleorder_document">
+        <xpath expr="//div[@name='delivery_date']/div[@t-field='doc.commitment_date']" position="attributes">
+            <attribute name="t-options">{'widget': 'datetime', 'format': 'dd/MM/yyyy HH:mm', 'tz_name': doc.user_id.tz or 'America/Argentina/Buenos_Aires'}</attribute>
+        </xpath>
+    </template>
 </odoo>
