@@ -2,12 +2,15 @@
 # License LGPL-3.0 or later (https://www.gnu.org/licenses/lgpl-3.0.html).
 
 import ast
+import importlib.util
+import os
 
 from lxml import etree
 
 from odoo.exceptions import AccessError, UserError
 from odoo.tests import TransactionCase, tagged
 
+import odoo.addons.kai_no_create_partner_product as kai_no_create_partner_product
 from odoo.addons.kai_no_create_partner_product.models.kai_no_create import (
     CONTEXT_KEY,
     inject_context_key,
@@ -25,22 +28,70 @@ class TestKaiNoCreatePartnerProduct(TransactionCase):
         cls.product_model = cls.env['product.product']
         cls.template_model = cls.env['product.template']
 
-    def test_flag_defaults_to_allowed(self):
-        self.assertTrue(self.env.user.kai_allow_create_partner_product)
+    def test_flag_defaults_to_blocked(self):
+        self.assertFalse(self.env.user.kai_allow_create_partner_product)
         user = self.env['res.users'].with_context(no_reset_password=True, mail_create_nosubscribe=True).create({
             'name': 'Usuario Kai sin preferencia',
             'login': 'kai_no_create_default',
             'email': 'kai_no_create_default@example.com',
         })
-        self.assertTrue(user.kai_allow_create_partner_product)
+        self.assertFalse(user.kai_allow_create_partner_product)
         with self.assertRaises(AccessError):
-            user.with_user(user).write({'kai_allow_create_partner_product': False})
-        self.assertTrue(user.kai_allow_create_partner_product)
+            user.with_user(user).write({'kai_allow_create_partner_product': True})
+        self.assertFalse(user.kai_allow_create_partner_product)
 
         admin = self.env.ref('base.user_admin')
+        admin.with_user(admin).write({'kai_allow_create_partner_product': True})
+        self.assertTrue(admin.kai_allow_create_partner_product)
         admin.with_user(admin).write({'kai_allow_create_partner_product': False})
         self.assertFalse(admin.kai_allow_create_partner_product)
-        admin.with_user(admin).write({'kai_allow_create_partner_product': True})
+
+    def test_upgrade_migration_clears_existing_users(self):
+        Users = self.env['res.users'].with_context(
+            no_reset_password=True,
+            mail_create_nosubscribe=True,
+        )
+        allowed = Users.create({
+            'name': 'Usuario Kai antes permitido',
+            'login': 'kai_no_create_upgrade',
+            'email': 'kai_no_create_upgrade@example.com',
+            'kai_allow_create_partner_product': True,
+        })
+        self.assertTrue(allowed.kai_allow_create_partner_product)
+        self.env.flush_all()
+
+        migrate = self._load_upgrade_migration()
+        migrate(self.env.cr, None)
+        allowed.invalidate_recordset()
+        self.assertTrue(allowed.kai_allow_create_partner_product)
+
+        migrate(self.env.cr, '19.0.1.0.1')
+        allowed.invalidate_recordset()
+        self.env.user.invalidate_recordset()
+        self.assertFalse(allowed.kai_allow_create_partner_product)
+        self.assertFalse(self.env.user.kai_allow_create_partner_product)
+
+        created_after = Users.create({
+            'name': 'Usuario Kai despues de actualizar',
+            'login': 'kai_no_create_after_upgrade',
+            'email': 'kai_no_create_after_upgrade@example.com',
+        })
+        self.assertFalse(created_after.kai_allow_create_partner_product)
+
+    def _load_upgrade_migration(self):
+        script = os.path.join(
+            os.path.dirname(kai_no_create_partner_product.__file__),
+            'migrations',
+            '19.0.1.0.2',
+            'post-migrate.py',
+        )
+        spec = importlib.util.spec_from_file_location(
+            'kai_no_create_partner_product_post_migrate_19_0_1_0_2',
+            script,
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module.migrate
 
     def test_create_from_commercial_context_follows_the_flag(self):
         sources = ('sale.order', 'purchase.order', 'account.move', 'account.payment')
