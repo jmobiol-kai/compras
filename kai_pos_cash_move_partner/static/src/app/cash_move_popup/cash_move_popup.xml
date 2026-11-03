@@ -64,7 +64,7 @@
                             t-key="state.type"
                             t-att-value="state.destJournalId || ''"
                             t-on-change="onDestJournalChange">
-                        <option value="" t-att-selected="!state.destJournalId">Sin otro diario</option>
+                        <option value="" t-att-selected="!state.destJournalId"><t t-esc="state.sessionCashJournalName"/></option>
                         <option t-foreach="state.journals"
                                 t-as="journal"
                                 t-key="journal.id"

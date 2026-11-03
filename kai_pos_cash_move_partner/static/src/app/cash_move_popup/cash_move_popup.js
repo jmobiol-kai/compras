@@ -25,6 +25,7 @@ patch(CashMovePopup.prototype, {
             moves: [],
             selectedMoveIds: [],
             journals: [],
+            sessionCashJournalName: "",
             destJournalId: false,
             loadingMoves: false,
         });
@@ -215,9 +216,14 @@ patch(CashMovePopup.prototype, {
         }
     },
 
+    /**
+     * Transfer targets go in ``journals``. The session cash journal is not
+     * one of them: its name only labels the empty option, for entrada and
+     * for salida. An empty selection still omits ``dest_journal_id``.
+     */
     async loadDestJournals() {
         try {
-            const journals = await this.pos.data.call(
+            const payload = await this.pos.data.call(
                 "pos.session",
                 "kai_list_cash_move_dest_journals",
                 [[this.pos.session.id]]
@@ -225,14 +231,21 @@ patch(CashMovePopup.prototype, {
             if (!this._alive) {
                 return;
             }
-            this.state.journals = journals || [];
+            this._applyDestJournalPayload(payload);
         } catch (error) {
             if (!this._alive) {
                 return;
             }
             this.state.journals = [];
+            this.state.sessionCashJournalName = "";
             this.notification.add(this._rpcMessage(error, "No se pudieron cargar los diarios."));
         }
+    },
+
+    _applyDestJournalPayload(payload) {
+        const data = payload || {};
+        this.state.journals = data.journals || [];
+        this.state.sessionCashJournalName = data.session_cash_journal_name || "";
     },
 
     onDestJournalChange(ev) {
