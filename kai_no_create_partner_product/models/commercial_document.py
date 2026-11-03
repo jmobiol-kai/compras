@@ -1,62 +1,104 @@
-from lxml import etree
-
 from odoo import api, models
 
-from .kai_no_create import COMMERCIAL_VIEW_TYPES, restrict_partner_product_m2o
+from .kai_no_create import extend_commercial_view_cache_key, guard_commercial_arch
+
+# View hooks stay on each ``_inherit`` class. A plain mixin as a second base
+# makes Odoo 19 fail while assigning ``__bases__`` (object layout differs).
 
 
-class CommercialViewGuard:
-    """Apply ``no_create`` on partner and product many2ones of one document model.
-
-    ``get_view`` caches the arch without the user id (see ``_get_view_cache_key``
-    on the base model). The flag is part of the key, so two users with different
-    values do not share an arch, and toggling the checkbox changes the key on
-    the next load.
-    """
+class SaleOrder(models.Model):
+    _inherit = 'sale.order'
 
     @api.model
     def _get_view_cache_key(self, view_id=None, view_type='form', **options):
-        return super()._get_view_cache_key(view_id, view_type, **options) + (
-            bool(self.env.user.kai_allow_create_partner_product),
-        )
+        key = super()._get_view_cache_key(view_id, view_type, **options)
+        return extend_commercial_view_cache_key(self, key)
 
     @api.model
     def _get_view(self, view_id=None, view_type='form', **options):
         arch, view = super()._get_view(view_id, view_type, **options)
-        if (
-            view_type in COMMERCIAL_VIEW_TYPES
-            and not self.env.user.kai_allow_create_partner_product
-        ):
-            # Copy before editing. The combined arch must stay intact for users
-            # who are still allowed to create.
-            arch = etree.fromstring(etree.tostring(arch))
-            restrict_partner_product_m2o(arch, self)
-        return arch, view
+        return guard_commercial_arch(self, arch, view_type), view
 
 
-class SaleOrder(CommercialViewGuard, models.Model):
-    _inherit = 'sale.order'
-
-
-class SaleOrderLine(CommercialViewGuard, models.Model):
+class SaleOrderLine(models.Model):
     _inherit = 'sale.order.line'
 
+    @api.model
+    def _get_view_cache_key(self, view_id=None, view_type='form', **options):
+        key = super()._get_view_cache_key(view_id, view_type, **options)
+        return extend_commercial_view_cache_key(self, key)
 
-class PurchaseOrder(CommercialViewGuard, models.Model):
+    @api.model
+    def _get_view(self, view_id=None, view_type='form', **options):
+        arch, view = super()._get_view(view_id, view_type, **options)
+        return guard_commercial_arch(self, arch, view_type), view
+
+
+class PurchaseOrder(models.Model):
     _inherit = 'purchase.order'
 
+    @api.model
+    def _get_view_cache_key(self, view_id=None, view_type='form', **options):
+        key = super()._get_view_cache_key(view_id, view_type, **options)
+        return extend_commercial_view_cache_key(self, key)
 
-class PurchaseOrderLine(CommercialViewGuard, models.Model):
+    @api.model
+    def _get_view(self, view_id=None, view_type='form', **options):
+        arch, view = super()._get_view(view_id, view_type, **options)
+        return guard_commercial_arch(self, arch, view_type), view
+
+
+class PurchaseOrderLine(models.Model):
     _inherit = 'purchase.order.line'
 
+    @api.model
+    def _get_view_cache_key(self, view_id=None, view_type='form', **options):
+        key = super()._get_view_cache_key(view_id, view_type, **options)
+        return extend_commercial_view_cache_key(self, key)
 
-class AccountMove(CommercialViewGuard, models.Model):
+    @api.model
+    def _get_view(self, view_id=None, view_type='form', **options):
+        arch, view = super()._get_view(view_id, view_type, **options)
+        return guard_commercial_arch(self, arch, view_type), view
+
+
+class AccountMove(models.Model):
     _inherit = 'account.move'
 
+    @api.model
+    def _get_view_cache_key(self, view_id=None, view_type='form', **options):
+        key = super()._get_view_cache_key(view_id, view_type, **options)
+        return extend_commercial_view_cache_key(self, key)
 
-class AccountMoveLine(CommercialViewGuard, models.Model):
+    @api.model
+    def _get_view(self, view_id=None, view_type='form', **options):
+        arch, view = super()._get_view(view_id, view_type, **options)
+        return guard_commercial_arch(self, arch, view_type), view
+
+
+class AccountMoveLine(models.Model):
     _inherit = 'account.move.line'
 
+    @api.model
+    def _get_view_cache_key(self, view_id=None, view_type='form', **options):
+        key = super()._get_view_cache_key(view_id, view_type, **options)
+        return extend_commercial_view_cache_key(self, key)
 
-class AccountPayment(CommercialViewGuard, models.Model):
+    @api.model
+    def _get_view(self, view_id=None, view_type='form', **options):
+        arch, view = super()._get_view(view_id, view_type, **options)
+        return guard_commercial_arch(self, arch, view_type), view
+
+
+class AccountPayment(models.Model):
     _inherit = 'account.payment'
+
+    @api.model
+    def _get_view_cache_key(self, view_id=None, view_type='form', **options):
+        key = super()._get_view_cache_key(view_id, view_type, **options)
+        return extend_commercial_view_cache_key(self, key)
+
+    @api.model
+    def _get_view(self, view_id=None, view_type='form', **options):
+        arch, view = super()._get_view(view_id, view_type, **options)
+        return guard_commercial_arch(self, arch, view_type), view

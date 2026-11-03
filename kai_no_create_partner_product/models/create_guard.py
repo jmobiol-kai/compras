@@ -1,45 +1,33 @@
-from odoo import _, api, models
-from odoo.exceptions import UserError
+from odoo import api, models
 
-from .kai_no_create import commercial_create_is_blocked
+from .kai_no_create import check_commercial_create
+
+# ``create`` stays on the ``_inherit`` class. A plain mixin as a second base
+# makes Odoo 19 fail while assigning ``__bases__`` (object layout differs).
 
 
-class CommercialCreateGuard:
-    """Reject partner and product creates that come from a guarded document.
-
-    Quick create calls ``name_create``, which calls ``create``. The form dialog
-    calls ``web_save``, which also calls ``create``. Blocking ``create`` covers
-    both. The many2one context is the only signal that distinguishes this from
-    a create done in Contactos or Productos.
-    """
+class ResPartner(models.Model):
+    _inherit = 'res.partner'
 
     @api.model_create_multi
     def create(self, vals_list):
-        if vals_list and commercial_create_is_blocked(self.env):
-            raise UserError(self._kai_commercial_create_message())
+        check_commercial_create(self, vals_list)
         return super().create(vals_list)
 
-    def _kai_commercial_create_message(self):
-        if self._name == 'res.partner':
-            return _(
-                'No tiene permitido crear contactos desde cotizaciones, facturas o recibos. '
-                'Elija un contacto existente o pida a un administrador que active '
-                '«Permitir creación de productos y contactos desde las cotizaciones» en su usuario.'
-            )
-        return _(
-            'No tiene permitido crear productos desde cotizaciones, facturas o recibos. '
-            'Elija un producto existente o pida a un administrador que active '
-            '«Permitir creación de productos y contactos desde las cotizaciones» en su usuario.'
-        )
 
-
-class ResPartner(CommercialCreateGuard, models.Model):
-    _inherit = 'res.partner'
-
-
-class ProductProduct(CommercialCreateGuard, models.Model):
+class ProductProduct(models.Model):
     _inherit = 'product.product'
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        check_commercial_create(self, vals_list)
+        return super().create(vals_list)
 
-class ProductTemplate(CommercialCreateGuard, models.Model):
+
+class ProductTemplate(models.Model):
     _inherit = 'product.template'
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        check_commercial_create(self, vals_list)
+        return super().create(vals_list)
