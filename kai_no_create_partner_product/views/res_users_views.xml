@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_users_form_kai_allow_create" model="ir.ui.view">
+        <field name="name">res.users.form.kai.allow.create.partner.product</field>
+        <field name="model">res.users</field>
+        <field name="inherit_id" ref="base.view_users_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='access_rights']/group[1]" position="before">
+                <group string="Cotizaciones, facturas y recibos" name="kai_commercial_create">
+                    <field name="kai_allow_create_partner_product" groups="base.group_erp_manager"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>
