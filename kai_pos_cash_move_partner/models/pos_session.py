@@ -134,11 +134,17 @@ class PosSession(models.Model):
         return [self._kai_cash_move_document_payload(move) for move in moves]
 
     def kai_list_cash_move_dest_journals(self):
-        """Other cash and bank journals of the session company.
+        """Other cash and bank journals, plus the session cash journal name.
 
-        The session cash journal is excluded. A POS manager has no read
-        access on ``account.journal``, so the search is sudo and the domain
-        stays on this company, these types and the session currency.
+        ``journals`` excludes the session cash journal: it is not a transfer
+        target. ``session_cash_journal_name`` labels the empty destination
+        option. Choosing that option sends no ``dest_journal_id``, so the
+        move stays on this journal. ``session_cash_journal_id`` is display
+        context only and must not be posted as a destination.
+
+        A POS manager has no read access on ``account.journal``, so the
+        search is sudo and the domain stays on this company, these types
+        and the session currency.
         """
         self.ensure_one()
         self._kai_check_cash_move_access()
@@ -160,7 +166,11 @@ class PosSession(models.Model):
                 'name': journal.display_name,
                 'type': journal.type,
             })
-        return result
+        return {
+            'journals': result,
+            'session_cash_journal_id': cash_journal.id,
+            'session_cash_journal_name': cash_journal.sudo().display_name,
+        }
 
     def _kai_cash_move_document_payload(self, move):
         self.ensure_one()

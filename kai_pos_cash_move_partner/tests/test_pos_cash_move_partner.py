@@ -325,9 +325,15 @@ class TestKaiPosCashMovePartner(TestPoSCommon):
         opened = self.pos_session.kai_search_cash_move_partners('')
         self.assertTrue(opened)
         self.assertLessEqual(len(opened), 20)
-        journals = self.pos_session.kai_list_cash_move_dest_journals()
+        payload = self.pos_session.kai_list_cash_move_dest_journals()
+        journals = payload['journals']
         journal_ids = [row['id'] for row in journals]
-        self.assertNotIn(self.pos_session.cash_journal_id.id, journal_ids)
+        cash_journal = self.pos_session.cash_journal_id
+        self.assertEqual(payload['session_cash_journal_id'], cash_journal.id)
+        self.assertEqual(
+            payload['session_cash_journal_name'], cash_journal.sudo().display_name,
+        )
+        self.assertNotIn(cash_journal.id, journal_ids)
         self.assertIn(self.company_data['default_journal_bank'].id, journal_ids)
         self.assertTrue(all(row['type'] in ('bank', 'cash') for row in journals))
 

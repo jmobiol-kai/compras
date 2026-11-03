@@ -25,6 +25,7 @@ function makePopup(extra = {}) {
         moves: [],
         selectedMoveIds: [],
         journals: [],
+        sessionCashJournalName: "",
         destJournalId: false,
         loadingMoves: false,
         ...extra,
@@ -227,6 +228,58 @@ const popupJs = readFileSync(
     new URL("../../static/src/app/cash_move_popup/cash_move_popup.js", import.meta.url),
     "utf8",
 );
+assert.match(
+    xml,
+    /<option value="" t-att-selected="!state\.destJournalId">\s*<t t-esc="state\.sessionCashJournalName"\/>/
+);
+assert.equal(xml.includes("Sin otro diario"), false);
+
+{
+    const popup = makePopup({ type: "in" });
+    popup.pos.data.call = async () => ({
+        journals: [{ id: 8, name: "Banco" }],
+        session_cash_journal_id: 2,
+        session_cash_journal_name: "Caja Blinis",
+    });
+    await popup.loadDestJournals();
+    assert.deepEqual(popup.state.journals, [{ id: 8, name: "Banco" }]);
+    assert.equal(
+        popup.state.journals.some((journal) => journal.id === 2),
+        false
+    );
+    assert.equal(popup.state.sessionCashJournalName, "Caja Blinis");
+    assert.equal(popup.state.destJournalId, false);
+    const entrada = popup._prepareTryCashInOutPayload("in", 10, "Cobro", 1, {});
+    assert.equal(entrada.at(-1).dest_journal_id, undefined);
+
+    popup.onDestJournalChange({ target: { value: "" } });
+    assert.equal(popup.state.destJournalId, false);
+    assert.equal(
+        popup._prepareTryCashInOutPayload("in", 10, "Cobro", 1, {}).at(-1).dest_journal_id,
+        undefined
+    );
+
+    // Salida keeps the same empty-option label once a contact unlocks the select.
+    popup.onClickButton("out");
+    assert.equal(popup.state.type, "out");
+    assert.equal(popup.showDestJournal(), false);
+    assert.equal(popup.state.sessionCashJournalName, "Caja Blinis");
+    popup.state.partnerId = 42;
+    popup.state.partnerName = "Proveedor";
+    assert.equal(popup.showDestJournal(), true);
+    assert.equal(popup.state.destJournalId, false);
+    const salida = popup._prepareTryCashInOutPayload("out", 10, "Pago", 1, {});
+    assert.equal(salida.at(-1).dest_journal_id, undefined);
+    assert.equal(salida.at(-1).cash_partner_id, 42);
+
+    popup.pos.data.call = async () => {
+        throw new Error("fallo");
+    };
+    await popup.loadDestJournals();
+    assert.deepEqual(popup.state.journals, []);
+    assert.equal(popup.state.sessionCashJournalName, "");
+}
+
 assert.match(xml, /state\.type === ['"]in['"]/);
 assert.match(xml, /Se genera un recibo del cliente/);
 assert.match(xml, /El motivo queda en el memo/);

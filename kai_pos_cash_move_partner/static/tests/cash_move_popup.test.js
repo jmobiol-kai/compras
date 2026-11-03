@@ -9,11 +9,19 @@ import "@kai_pos_cash_move_partner/app/cash_move_popup/cash_move_popup";
 
 definePosModels();
 
+function destJournalsPayload() {
+    return {
+        journals: [{ id: 3, name: "Banco" }],
+        session_cash_journal_id: 1,
+        session_cash_journal_name: "Caja Blinis",
+    };
+}
+
 test("switching cash in and cash out clears partner, documents and journal", async () => {
     const store = await setupPosEnv();
     store.data.call = async (model, method) => {
         if (method === "kai_list_cash_move_dest_journals") {
-            return [{ id: 3, name: "Banco" }];
+            return destJournalsPayload();
         }
         return [];
     };
@@ -85,7 +93,7 @@ test("cash out hides the destination journal until a contact is chosen", async (
     const store = await setupPosEnv();
     store.data.call = async (model, method) => {
         if (method === "kai_list_cash_move_dest_journals") {
-            return [{ id: 3, name: "Banco" }];
+            return destJournalsPayload();
         }
         return [];
     };
@@ -139,11 +147,50 @@ test("cash out hides the destination journal until a contact is chosen", async (
     expect("#kai_cash_move_journal_locked").toHaveCount(1);
 });
 
+test("empty destination option is the session cash journal on cash in and cash out", async () => {
+    const store = await setupPosEnv();
+    store.data.call = async (model, method) => {
+        if (method === "kai_list_cash_move_dest_journals") {
+            return destJournalsPayload();
+        }
+        return [];
+    };
+    const popup = await mountWithCleanup(CashMovePopup, {
+        props: { close: () => {} },
+    });
+    await popup.loadDestJournals();
+    await animationFrame();
+
+    expect(popup.state.sessionCashJournalName).toBe("Caja Blinis");
+    expect(popup.state.journals.map((journal) => journal.id)).toEqual([3]);
+    expect(popup.state.type).toBe("out");
+    expect("#kai_cash_move_journal").toHaveCount(0);
+
+    popup.state.partnerId = 42;
+    popup.state.partnerName = "Proveedor POS";
+    await animationFrame();
+    expect("#kai_cash_move_journal option[value='']").toHaveText("Caja Blinis");
+    expect("#kai_cash_move_journal option[value='1']").toHaveCount(0);
+    expect("#kai_cash_move_journal option[value='3']").toHaveCount(1);
+    const salida = popup._prepareTryCashInOutPayload("out", 10, "Pago", 1, {}).at(-1);
+    expect(salida.dest_journal_id).toBe(undefined);
+    expect(salida.cash_partner_id).toBe(42);
+
+    popup.onClickButton("in");
+    await animationFrame();
+    expect(popup.showDestJournal()).toBe(true);
+    expect("#kai_cash_move_journal option[value='']").toHaveText("Caja Blinis");
+    expect(popup.state.destJournalId).toBe(false);
+    const entrada = popup._prepareTryCashInOutPayload("in", 10, "Cobro", 1, {}).at(-1);
+    expect(entrada.dest_journal_id).toBe(undefined);
+    expect(entrada.cash_partner_id).toBe(undefined);
+});
+
 test("cash in with a contact and no invoice is pago a cuenta", async () => {
     const store = await setupPosEnv();
     store.data.call = async (model, method) => {
         if (method === "kai_list_cash_move_dest_journals") {
-            return [{ id: 3, name: "Banco" }];
+            return destJournalsPayload();
         }
         return [];
     };
