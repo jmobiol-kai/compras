@@ -7,6 +7,7 @@
         <field name="arch" type="xml">
             <field name="partner_id" position="after">
                 <field name="cash_move_contact_id" optional="show"/>
+                <field name="kai_on_account_payment_id" optional="show"/>
             </field>
             <field name="vendor_bill_id" position="after">
                 <field name="vendor_bill_ids" widget="many2many_tags" optional="show"/>

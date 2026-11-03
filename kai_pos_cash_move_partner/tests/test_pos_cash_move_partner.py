@@ -148,6 +148,117 @@ class TestKaiPosCashMovePartner(TestPoSCommon):
         self.assertFalse(on_account.customer_invoice_ids)
         self.assertEqual(on_account.partner_id, self.cashier)
         self.assertEqual(on_account.cash_move_contact_id, self.customer)
+        self.assertEqual(on_account.kai_on_account_payment_id.memo, 'Seña')
+        self.assertEqual(on_account.kai_on_account_payment_id.partner_id, self.customer)
+
+    def test_customer_invoices_do_not_create_a_receipt(self):
+        invoice = self._invoice(40.0)
+        before = self.env['account.payment'].search_count([])
+        line = self._cash('in', 40.0, 'Cobro factura', self.cashier.id, {
+            'cash_partner_id': self.customer.id,
+            'move_ids': invoice.ids,
+        })
+        self.assertEqual(self.env['account.payment'].search_count([]), before)
+        self.assertFalse(line.kai_on_account_payment_id)
+        self.assertIn(invoice.payment_state, ('paid', 'in_payment'))
+
+    def test_customer_on_account_receipt_keeps_reason_and_can_be_imputed(self):
+        """Entrada with a contact and no invoice is a customer receipt.
+
+        The cash debit stays on the POS statement line only. The receipt memo
+        is the cashier's note, the open receivable is not applied to invoices
+        that already existed, and a later invoice can take that credit.
+        """
+        already_open = self._invoice(40.0)
+        before = self.env['account.payment'].search_count([])
+        line = self._cash('in', 15.0, '  Seña cumpleaños  ', self.cashier.id, {
+            'cash_partner_id': self.customer.id,
+        })
+        payment = line.kai_on_account_payment_id
+        self.assertTrue(payment)
+        self.assertEqual(self.env['account.payment'].search_count([]), before + 1)
+        self.assertEqual(payment.memo, 'Seña cumpleaños')
+        self.assertEqual(payment.move_id.ref, 'Seña cumpleaños')
+        self.assertEqual(payment.payment_type, 'inbound')
+        self.assertEqual(payment.partner_type, 'customer')
+        self.assertEqual(payment.partner_id, self.customer)
+        self.assertAlmostEqual(payment.amount, 15.0)
+        self.assertIn(payment.state, ('in_process', 'paid'))
+        self.assertEqual(payment.pos_session_id, self.pos_session)
+        self.assertTrue(line.cash_move_assigned)
+        self.assertFalse(line.cash_move_partner_pending)
+        self.assertFalse(line.customer_invoice_ids)
+        self.assertEqual(line.partner_id, self.cashier)
+        self.assertEqual(line.move_id.partner_id, self.customer)
+        self.assertEqual(already_open.payment_state, 'not_paid')
+        self.assertAlmostEqual(already_open.amount_residual, 40.0)
+
+        cash_account = line.journal_id.default_account_id
+        cash_lines = (line.move_id.line_ids | payment.move_id.line_ids).filtered(
+            lambda move_line: move_line.account_id == cash_account
+        )
+        self.assertEqual(len(cash_lines), 1)
+        self.assertAlmostEqual(cash_lines.balance, 15.0)
+        bridge_lines = (line.move_id.line_ids | payment.move_id.line_ids).filtered(
+            lambda move_line: move_line.account_id == payment.outstanding_account_id
+        )
+        self.assertEqual(len(bridge_lines), 2)
+        self.assertTrue(all(bridge_lines.mapped('reconciled')))
+
+        receivable = self.customer.with_company(line.company_id).property_account_receivable_id
+        credit = payment.move_id.line_ids.filtered(
+            lambda move_line: move_line.account_id == receivable
+        )
+        self.assertEqual(len(credit), 1)
+        self.assertFalse(credit.reconciled)
+        self.assertAlmostEqual(abs(credit.amount_residual), 15.0)
+
+        later = self._invoice(10.0)
+        debit = later.line_ids.filtered(
+            lambda move_line: move_line.account_id == receivable and not move_line.reconciled
+        )
+        (credit | debit).reconcile()
+        self.assertIn(later.payment_state, ('paid', 'in_payment'))
+        self.assertAlmostEqual(later.amount_residual, 0.0)
+        self.assertAlmostEqual(abs(credit.amount_residual), 5.0)
+        self.assertEqual(already_open.payment_state, 'not_paid')
+
+        with self.assertRaises(UserError) as error:
+            line.action_unassign_cash_move_partner()
+        self.assertIn('imputó', str(error.exception))
+        self.assertEqual(line.kai_on_account_payment_id, payment)
+        self.assertNotEqual(payment.state, 'canceled')
+        self.assertIn(later.payment_state, ('paid', 'in_payment'))
+
+    def test_customer_on_account_undo_cancels_the_receipt(self):
+        line = self._cash('in', 15.0, 'Seña sin imputar', self.cashier.id, {
+            'cash_partner_id': self.customer.id,
+        })
+        payment = line.kai_on_account_payment_id
+        line.action_unassign_cash_move_partner()
+        self.assertFalse(line.kai_on_account_payment_id)
+        self.assertFalse(line.cash_move_assigned)
+        self.assertTrue(line.cash_move_partner_pending)
+        self.assertFalse(line.partner_id)
+        self.assertFalse(line.cash_move_contact_id)
+        self.assertEqual(payment.state, 'canceled')
+        self.assertFalse(payment.move_id.line_ids.filtered(
+            lambda move_line: move_line.account_id.account_type == 'asset_receivable'
+            and move_line.parent_state == 'posted'
+            and not move_line.reconciled
+        ))
+
+    def test_child_contact_receipt_uses_the_commercial_partner(self):
+        child = self.env['res.partner'].create({
+            'name': 'Hijo POS Kai',
+            'parent_id': self.customer.id,
+        })
+        line = self._cash('in', 8.0, 'Seña hijo', self.cashier.id, {
+            'cash_partner_id': child.id,
+        })
+        self.assertEqual(line.kai_on_account_payment_id.partner_id, self.customer)
+        self.assertEqual(line.kai_on_account_payment_id.memo, 'Seña hijo')
+        self.assertEqual(line.cash_move_contact_id, self.customer)
 
     def test_dest_journal_uses_onlyone_transfer(self):
         journal = self.company_data['default_journal_bank']

@@ -30,8 +30,12 @@ class PosSession(models.Model):
         * ``dest_journal_id``: other cash or bank journal. When it is set,
           invoices are not applied. The transfer uses a journal-mode
           ``pos.cash.move.type`` of the session company.
+        * ``kai_reason``: the cashier's note, copied here from ``reason``.
+          A cash in with a contact and no invoice becomes a customer receipt
+          (pago a cuenta) whose memo is this text.
         """
-        extras = extras or {}
+        extras = dict(extras or {})
+        extras['kai_reason'] = reason.strip() if isinstance(reason, str) else ''
         before_ids = set(self.sudo().statement_line_ids.ids)
         result = super().try_cash_in_out(_type, amount, reason, partner_id, extras)
         if not self._kai_cash_move_extras_requested(extras):

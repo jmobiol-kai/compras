@@ -223,4 +223,66 @@ assert.match(xml, /t-else="" id="kai_cash_move_journal_locked"/);
     assert.equal(popup.state.destJournalId, false);
 }
 
+const popupJs = readFileSync(
+    new URL("../../static/src/app/cash_move_popup/cash_move_popup.js", import.meta.url),
+    "utf8",
+);
+assert.match(xml, /state\.type === ['"]in['"]/);
+assert.match(xml, /Se genera un recibo del cliente/);
+assert.match(xml, /El motivo queda en el memo/);
+assert.match(xml, /se puede imputar después/);
+assert.match(popupJs, /Esperá a que carguen las facturas antes de confirmar/);
+assert.match(popupJs, /confirmWaitsForOpenMoves/);
+
+{
+    const popup = makePopup({
+        type: "in",
+        partnerId: 9,
+        partnerName: "Cliente",
+        moves: [{ id: 8, name: "FAC/008" }],
+        selectedMoveIds: [],
+        loadingMoves: false,
+    });
+    assert.equal(popup.showOnAccount(), true);
+    assert.equal(popup.confirmWaitsForOpenMoves(), false);
+    const payload = popup._prepareTryCashInOutPayload(
+        "in",
+        15,
+        "Seña cumpleaños",
+        1,
+        { translatedType: "in" },
+    );
+    const extras = payload[payload.length - 1];
+    assert.equal(payload[2], 15);
+    assert.equal(payload[3], "Seña cumpleaños");
+    assert.equal(extras.cash_partner_id, 9);
+    assert.equal(extras.move_ids, undefined);
+    assert.equal(extras.dest_journal_id, undefined);
+
+    popup.state.loadingMoves = true;
+    assert.equal(popup.showOnAccount(), false);
+    assert.equal(popup.confirmWaitsForOpenMoves(), true);
+    let notice = "";
+    popup.notification = {
+        add(message) {
+            notice = message;
+        },
+    };
+    const blocked = await CashMovePopup.prototype.confirm.call(popup);
+    assert.equal(blocked, undefined);
+    assert.match(notice, /facturas/);
+
+    popup.state.loadingMoves = false;
+    popup.state.selectedMoveIds = [8];
+    assert.equal(popup.showOnAccount(), false);
+    const withInvoice = popup._prepareTryCashInOutPayload(
+        "in",
+        15,
+        "Cobro",
+        1,
+        { translatedType: "in" },
+    );
+    assert.deepEqual(withInvoice[withInvoice.length - 1].move_ids, [8]);
+}
+
 console.log("cash move direction reset: ok");
