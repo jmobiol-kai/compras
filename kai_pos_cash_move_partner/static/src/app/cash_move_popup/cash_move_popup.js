@@ -63,11 +63,12 @@ patch(CashMovePopup.prototype, {
      */
     _prepareTryCashInOutPayload() {
         const result = super._prepareTryCashInOutPayload(...arguments);
+        this._dropBlockedDestJournal();
         const assign = {};
         if (this.state.partnerId) {
             assign.cash_partner_id = this.state.partnerId;
         }
-        if (this.state.destJournalId) {
+        if (this.state.destJournalId && this.showDestJournal()) {
             assign.dest_journal_id = this.state.destJournalId;
         } else if (this.state.selectedMoveIds.length) {
             assign.move_ids = [...this.state.selectedMoveIds];
@@ -121,6 +122,22 @@ patch(CashMovePopup.prototype, {
         this.state.partnerName = "";
         this.state.moves = [];
         this.state.selectedMoveIds = [];
+        // Salida cannot keep a destination journal once the contact is gone.
+        this._dropBlockedDestJournal();
+    },
+
+    /**
+     * Salida cannot send cash to another journal until a contact is chosen.
+     * Entrada can still pick a destination journal on its own.
+     */
+    showDestJournal() {
+        return this.state.type !== "out" || Boolean(this.state.partnerId);
+    },
+
+    _dropBlockedDestJournal() {
+        if (!this.showDestJournal()) {
+            this.state.destJournalId = false;
+        }
     },
 
     _partnerChoices(partners) {
@@ -200,6 +217,10 @@ patch(CashMovePopup.prototype, {
     },
 
     onDestJournalChange(ev) {
+        if (!this.showDestJournal()) {
+            this._dropBlockedDestJournal();
+            return;
+        }
         const value = parseInt(ev.target.value, 10);
         this.state.destJournalId = value || false;
         if (this.state.destJournalId) {
