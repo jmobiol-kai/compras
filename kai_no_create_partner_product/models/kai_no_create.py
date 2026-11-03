@@ -1,4 +1,7 @@
-"""Pure helpers for blocking partner and product creation on commercial documents.
+"""Helpers for blocking partner and product creation on commercial documents.
+
+Called from ``_inherit`` model classes. Do not use these as Python base classes:
+Odoo 19 cannot reassign ``__bases__`` when a non-Model mixin changes the layout.
 
 Odoo 19 decides the many2one "Create" / "Create and edit" entries from the
 field ``options`` (``no_create``, ``no_create_edit``, ``no_quick_create``),
@@ -9,6 +12,11 @@ sides stay valid.
 """
 
 import ast
+
+from lxml import etree
+
+from odoo import _
+from odoo.exceptions import UserError
 
 CONTEXT_KEY = 'kai_from_commercial_document'
 PARTNER_PRODUCT_MODELS = frozenset({
@@ -25,6 +33,44 @@ def commercial_create_is_blocked(env):
     if not env.context.get(CONTEXT_KEY):
         return False
     return not env.user.kai_allow_create_partner_product
+
+
+def check_commercial_create(model, vals_list):
+    """Raise if ``vals_list`` would create a partner or product from a document."""
+    if vals_list and commercial_create_is_blocked(model.env):
+        raise UserError(_commercial_create_message(model))
+
+
+def extend_commercial_view_cache_key(model, key):
+    """Include the user flag. ``get_view`` is cached without the uid."""
+    return key + (bool(model.env.user.kai_allow_create_partner_product),)
+
+
+def guard_commercial_arch(model, arch, view_type):
+    """Return ``arch`` with partner/product many2one creation hidden when needed.
+
+    The tree is copied before editing so a shared combined arch is not mutated
+    for users who are still allowed to create.
+    """
+    if view_type not in COMMERCIAL_VIEW_TYPES or model.env.user.kai_allow_create_partner_product:
+        return arch
+    arch = etree.fromstring(etree.tostring(arch))
+    restrict_partner_product_m2o(arch, model)
+    return arch
+
+
+def _commercial_create_message(model):
+    if model._name == 'res.partner':
+        return _(
+            'No tiene permitido crear contactos desde cotizaciones, facturas o recibos. '
+            'Elija un contacto existente o pida a un administrador que active '
+            '«Permitir creación de productos y contactos desde las cotizaciones» en su usuario.'
+        )
+    return _(
+        'No tiene permitido crear productos desde cotizaciones, facturas o recibos. '
+        'Elija un producto existente o pida a un administrador que active '
+        '«Permitir creación de productos y contactos desde las cotizaciones» en su usuario.'
+    )
 
 
 def inject_context_key(expr):
