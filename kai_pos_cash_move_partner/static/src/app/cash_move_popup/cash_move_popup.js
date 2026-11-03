@@ -34,10 +34,26 @@ patch(CashMovePopup.prototype, {
         this.loadDestJournals();
     },
 
+    /**
+     * Entrada and salida do not share a contact, its comprobantes, or a
+     * destination journal. Changing direction drops those choices so a bill
+     * picked for a cash out cannot stay selected on a cash in, and the other
+     * way around. Amount and reason stay. Clicking the direction that is
+     * already selected does not wipe the form.
+     */
     onClickButton(type) {
+        const typeChanged = this.state.type !== type;
         super.onClickButton(type);
-        this.state.selectedMoveIds = [];
-        this.loadOpenMoves();
+        if (!typeChanged) {
+            return;
+        }
+        // A search started before the click must not refill the lists.
+        this._moveRequest++;
+        this._partnerRequest++;
+        this.clearPartner();
+        this.state.partnerChoices = [];
+        this.state.destJournalId = false;
+        this.state.loadingMoves = false;
     },
 
     /**
@@ -144,6 +160,7 @@ patch(CashMovePopup.prototype, {
                 !this._alive ||
                 request !== this._moveRequest ||
                 this.state.partnerId !== partnerId ||
+                this.state.type !== cashType ||
                 this.state.destJournalId
             ) {
                 return;

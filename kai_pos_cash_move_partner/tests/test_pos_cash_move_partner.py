@@ -1,6 +1,10 @@
 # Copyright 2026 Kaizendo
 # License LGPL-3.0 or later (https://www.gnu.org/licenses/lgpl-3.0.html).
 
+import shutil
+import subprocess
+from pathlib import Path
+
 from odoo import Command
 from odoo.exceptions import UserError
 from odoo.tests import tagged
@@ -237,3 +241,21 @@ class TestKaiPosCashMovePartner(TestPoSCommon):
         self.assertEqual(line.partner_id, user.partner_id)
         self.assertEqual(line.cash_move_contact_id, self.vendor)
         self.assertFalse(line.vendor_bill_id)
+
+    def test_popup_direction_switch_clears_partner_documents_and_journal(self):
+        """Entrada and salida must not keep the other's contact, bills or journal.
+
+        The popup state lives in the POS client. The check runs the same
+        module source the cashier loads.
+        """
+        node = shutil.which('node')
+        if not node:
+            self.skipTest('node is not installed')
+        script = Path(__file__).resolve().parent / 'js' / 'cash_move_popup_direction.test.mjs'
+        result = subprocess.run(
+            [node, str(script)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, (result.stdout or '') + (result.stderr or ''))
