@@ -5,9 +5,11 @@ from odoo.exceptions import AccessError
 class ResUsers(models.Model):
     _inherit = 'res.users'
 
+    # Unchecked until an administrator turns it on. Rows stored while the
+    # default was True are cleared in migrations/19.0.1.0.2.
     kai_allow_create_partner_product = fields.Boolean(
         string='Permitir creación de productos y contactos desde las cotizaciones',
-        default=True,
+        default=False,
         help=(
             'Si está marcado, el usuario puede crear contactos y productos desde '
             'cotizaciones de venta y compra, facturas, recibos y pagos. '
