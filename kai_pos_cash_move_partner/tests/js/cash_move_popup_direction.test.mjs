@@ -57,8 +57,11 @@ const xml = readFileSync(
 assert.match(xml, /<SelectMenu\s+t-key="state\.type"/);
 assert.match(
     xml,
-    /id="kai_cash_move_journal"[\s\S]*?t-key="state\.type"[\s\S]*?t-att-value="state\.destJournalId \|\| ''"/
+    /t-if="this\.showDestJournal\(\)"[\s\S]*?id="kai_cash_move_journal"[\s\S]*?t-key="state\.type"[\s\S]*?t-att-value="state\.destJournalId \|\| ''"/
 );
+assert.match(xml, /id="kai_cash_move_journal_locked"/);
+assert.match(xml, /Elegí un contacto para poder elegir el diario\./);
+assert.match(xml, /t-else="" id="kai_cash_move_journal_locked"/);
 
 {
     const popup = makePopup({
@@ -156,6 +159,68 @@ assert.match(
     await pending;
     assert.deepEqual(popup.state.partnerChoices, []);
     assert.equal(popup.state.partnerId, false);
+}
+
+{
+    const popup = makePopup({ type: "out", destJournalId: 3, selectedMoveIds: [7] });
+    assert.equal(popup.showDestJournal(), false);
+    popup.onDestJournalChange({ target: { value: "8" } });
+    assert.equal(popup.state.destJournalId, false);
+    const blocked = extrasOf(popup);
+    assert.equal(blocked.dest_journal_id, undefined);
+    assert.equal(blocked.cash_partner_id, undefined);
+    assert.equal(popup.state.destJournalId, false);
+
+    popup.state.partnerId = 42;
+    popup.state.partnerName = "Proveedor";
+    assert.equal(popup.showDestJournal(), true);
+    popup.onDestJournalChange({ target: { value: "3" } });
+    assert.equal(popup.state.destJournalId, 3);
+    assert.deepEqual(popup.state.selectedMoveIds, []);
+    const allowed = extrasOf(popup);
+    assert.equal(allowed.dest_journal_id, 3);
+    assert.equal(allowed.cash_partner_id, 42);
+
+    popup.onPartnerSelect(false);
+    assert.equal(popup.state.partnerId, false);
+    assert.equal(popup.state.partnerName, "");
+    assert.equal(popup.state.destJournalId, false);
+    assert.equal(popup.showDestJournal(), false);
+    assert.equal(extrasOf(popup).dest_journal_id, undefined);
+}
+
+{
+    // Entrada can keep a destination journal after the contact is cleared.
+    const popup = makePopup({
+        type: "in",
+        partnerId: 9,
+        partnerName: "Cliente",
+        destJournalId: 4,
+    });
+    assert.equal(popup.showDestJournal(), true);
+    popup.clearPartner();
+    assert.equal(popup.state.partnerId, false);
+    assert.equal(popup.state.destJournalId, 4);
+    const extras = extrasOf(popup);
+    assert.equal(extras.cash_partner_id, undefined);
+    assert.equal(extras.dest_journal_id, 4);
+
+    popup.onDestJournalChange({ target: { value: "5" } });
+    assert.equal(popup.state.destJournalId, 5);
+    assert.equal(extrasOf(popup).dest_journal_id, 5);
+}
+
+{
+    // A journal chosen on entrada is dropped when the cashier switches to salida.
+    const popup = makePopup({ type: "in", destJournalId: 4 });
+    popup.onClickButton("out");
+    assert.equal(popup.state.type, "out");
+    assert.equal(popup.state.partnerId, false);
+    assert.equal(popup.state.destJournalId, false);
+    assert.equal(popup.showDestJournal(), false);
+    popup.state.destJournalId = 4;
+    assert.equal(extrasOf(popup).dest_journal_id, undefined);
+    assert.equal(popup.state.destJournalId, false);
 }
 
 console.log("cash move direction reset: ok");

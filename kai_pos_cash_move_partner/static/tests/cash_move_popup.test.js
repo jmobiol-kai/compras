@@ -75,6 +75,66 @@ test("switching cash in and cash out clears partner, documents and journal", asy
     expect(popup.state.partnerName).toBe("");
     expect(popup.state.destJournalId).toBe(false);
     expect(popup.state.selectedMoveIds).toEqual([]);
+    expect(popup.showDestJournal()).toBe(false);
     expect("#kai_cash_move_partner").toHaveValue("");
+    expect("#kai_cash_move_journal").toHaveCount(0);
+    expect("#kai_cash_move_journal_locked").toHaveCount(1);
+});
+
+test("cash out hides the destination journal until a contact is chosen", async () => {
+    const store = await setupPosEnv();
+    store.data.call = async (model, method) => {
+        if (method === "kai_list_cash_move_dest_journals") {
+            return [{ id: 3, name: "Banco" }];
+        }
+        return [];
+    };
+    const popup = await mountWithCleanup(CashMovePopup, {
+        props: { close: () => {} },
+    });
+    await animationFrame();
+
+    expect(popup.state.type).toBe("out");
+    expect(popup.showDestJournal()).toBe(false);
+    expect("#kai_cash_move_journal").toHaveCount(0);
+    expect("#kai_cash_move_journal_locked").toHaveCount(1);
+
+    popup.state.partnerId = 42;
+    popup.state.partnerName = "Proveedor POS";
+    popup.state.journals = [{ id: 3, name: "Banco" }];
+    await animationFrame();
+    expect(popup.showDestJournal()).toBe(true);
+    expect("#kai_cash_move_journal").toHaveCount(1);
+    expect("#kai_cash_move_journal_locked").toHaveCount(0);
     expect("#kai_cash_move_journal").toHaveValue("");
+
+    popup.state.destJournalId = 3;
+    await animationFrame();
+    expect("#kai_cash_move_journal").toHaveValue("3");
+
+    popup.clearPartner();
+    await animationFrame();
+    expect(popup.state.partnerId).toBe(false);
+    expect(popup.state.destJournalId).toBe(false);
+    expect("#kai_cash_move_journal").toHaveCount(0);
+    expect("#kai_cash_move_journal_locked").toHaveCount(1);
+
+    // Entrada can still pick a journal with no contact.
+    popup.onClickButton("in");
+    await animationFrame();
+    expect(popup.state.type).toBe("in");
+    expect(popup.showDestJournal()).toBe(true);
+    expect("#kai_cash_move_journal").toHaveCount(1);
+    expect("#kai_cash_move_journal_locked").toHaveCount(0);
+    popup.state.destJournalId = 3;
+    await animationFrame();
+    expect(popup.state.partnerId).toBe(false);
+    expect("#kai_cash_move_journal").toHaveValue("3");
+
+    popup.onClickButton("out");
+    await animationFrame();
+    expect(popup.state.destJournalId).toBe(false);
+    expect(popup.showDestJournal()).toBe(false);
+    expect("#kai_cash_move_journal").toHaveCount(0);
+    expect("#kai_cash_move_journal_locked").toHaveCount(1);
 });

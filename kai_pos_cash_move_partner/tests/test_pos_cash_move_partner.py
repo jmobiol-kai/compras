@@ -246,7 +246,8 @@ class TestKaiPosCashMovePartner(TestPoSCommon):
         """Entrada and salida must not keep the other's contact, bills or journal.
 
         The popup state lives in the POS client. The check runs the same
-        module source the cashier loads.
+        module source the cashier loads, including the salida rule that the
+        destination journal stays unavailable until a contact is chosen.
         """
         node = shutil.which('node')
         if not node:
