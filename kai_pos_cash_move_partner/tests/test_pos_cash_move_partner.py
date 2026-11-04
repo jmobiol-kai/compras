@@ -282,6 +282,34 @@ class TestKaiPosCashMovePartner(TestPoSCommon):
         self.assertFalse(line.move_id.partner_id)
         self.assertFalse(line.vendor_bill_id)
 
+    def test_dest_journal_without_partner(self):
+        """Salida with a destination journal and no contact still transfers.
+
+        The cashier can move the drawer to another cash or bank journal,
+        such as Efectivo Tesoro, without choosing a partner.
+        """
+        journal = self.company_data['default_journal_bank']
+        self.env['pos.cash.move.type'].create({
+            'name': 'Pasar a tesoro Kai',
+            'direction': 'both',
+            'counterpart_mode': 'journal',
+            'partner_policy': 'optional',
+        })
+        line = self._cash('out', 80.0, 'A Efectivo Tesoro', self.cashier.id, {
+            'dest_journal_id': journal.id,
+        })
+        self.assertEqual(line.cash_move_journal_id, journal)
+        self.assertTrue(line.cash_move_mirror_line_id)
+        self.assertEqual(line.cash_move_mirror_line_id.journal_id, journal)
+        self.assertFalse(line.cash_move_mirror_line_id.pos_session_id)
+        self.assertAlmostEqual(line.cash_move_mirror_line_id.amount, 80.0)
+        self.assertEqual(line.partner_id, self.cashier)
+        self.assertFalse(line.move_id.partner_id)
+        self.assertFalse(line.cash_move_contact_id)
+        self.assertFalse(line.vendor_bill_id)
+        self.assertFalse(line.customer_invoice_ids)
+        self.assertFalse(line.kai_on_account_payment_id)
+
     def test_dest_journal_requires_a_configured_type(self):
         journal = self.company_data['default_journal_bank']
         with self.assertRaises(UserError) as error:
@@ -363,8 +391,8 @@ class TestKaiPosCashMovePartner(TestPoSCommon):
         """Entrada and salida must not keep the other's contact, bills or journal.
 
         The popup state lives in the POS client. The check runs the same
-        module source the cashier loads, including the salida rule that the
-        destination journal stays unavailable until a contact is chosen.
+        module source the cashier loads. Salida without a contact can still
+        choose a destination journal.
         """
         node = shutil.which('node')
         if not node:

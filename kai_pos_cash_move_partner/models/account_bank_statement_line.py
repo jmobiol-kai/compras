@@ -396,7 +396,8 @@ class AccountBankStatementLine(models.Model):
 
         OnlyOne creates the mirror line only when ``_assign_cash_move_to_partner``
         receives ``cash_move_type`` and ``dest_journal``. The POS popup asks for
-        the journal; the type is the one configured in Tipos de caja.
+        the journal; the type is the one configured in Tipos de caja. A cash
+        out with no contact still transfers: ``partner`` may be empty.
         """
         self.ensure_one()
         move_type = self._kai_journal_move_type(dest_journal, partner)

@@ -58,11 +58,11 @@ const xml = readFileSync(
 assert.match(xml, /<SelectMenu\s+t-key="state\.type"/);
 assert.match(
     xml,
-    /t-if="this\.showDestJournal\(\)"[\s\S]*?id="kai_cash_move_journal"[\s\S]*?t-key="state\.type"[\s\S]*?t-att-value="state\.destJournalId \|\| ''"/
+    /<select\s+id="kai_cash_move_journal"[\s\S]*?t-key="state\.type"[\s\S]*?t-att-value="state\.destJournalId \|\| ''"/
 );
-assert.match(xml, /id="kai_cash_move_journal_locked"/);
-assert.match(xml, /Elegí un contacto para poder elegir el diario\./);
-assert.match(xml, /t-else="" id="kai_cash_move_journal_locked"/);
+assert.equal(xml.includes("showDestJournal"), false);
+assert.equal(xml.includes("kai_cash_move_journal_locked"), false);
+assert.equal(xml.includes("Elegí un contacto para poder elegir el diario."), false);
 
 {
     const popup = makePopup({
@@ -163,31 +163,31 @@ assert.match(xml, /t-else="" id="kai_cash_move_journal_locked"/);
 }
 
 {
-    const popup = makePopup({ type: "out", destJournalId: 3, selectedMoveIds: [7] });
-    assert.equal(popup.showDestJournal(), false);
+    // Salida without a contact can move cash to another journal.
+    const popup = makePopup({ type: "out", selectedMoveIds: [7] });
     popup.onDestJournalChange({ target: { value: "8" } });
-    assert.equal(popup.state.destJournalId, false);
-    const blocked = extrasOf(popup);
-    assert.equal(blocked.dest_journal_id, undefined);
-    assert.equal(blocked.cash_partner_id, undefined);
-    assert.equal(popup.state.destJournalId, false);
+    assert.equal(popup.state.destJournalId, 8);
+    assert.deepEqual(popup.state.selectedMoveIds, []);
+    const tesoro = extrasOf(popup);
+    assert.equal(tesoro.dest_journal_id, 8);
+    assert.equal(tesoro.cash_partner_id, undefined);
+    assert.equal(tesoro.move_ids, undefined);
 
     popup.state.partnerId = 42;
     popup.state.partnerName = "Proveedor";
-    assert.equal(popup.showDestJournal(), true);
     popup.onDestJournalChange({ target: { value: "3" } });
     assert.equal(popup.state.destJournalId, 3);
-    assert.deepEqual(popup.state.selectedMoveIds, []);
-    const allowed = extrasOf(popup);
-    assert.equal(allowed.dest_journal_id, 3);
-    assert.equal(allowed.cash_partner_id, 42);
+    const withPartner = extrasOf(popup);
+    assert.equal(withPartner.dest_journal_id, 3);
+    assert.equal(withPartner.cash_partner_id, 42);
 
     popup.onPartnerSelect(false);
     assert.equal(popup.state.partnerId, false);
     assert.equal(popup.state.partnerName, "");
-    assert.equal(popup.state.destJournalId, false);
-    assert.equal(popup.showDestJournal(), false);
-    assert.equal(extrasOf(popup).dest_journal_id, undefined);
+    assert.equal(popup.state.destJournalId, 3);
+    const kept = extrasOf(popup);
+    assert.equal(kept.dest_journal_id, 3);
+    assert.equal(kept.cash_partner_id, undefined);
 }
 
 {
@@ -198,7 +198,6 @@ assert.match(xml, /t-else="" id="kai_cash_move_journal_locked"/);
         partnerName: "Cliente",
         destJournalId: 4,
     });
-    assert.equal(popup.showDestJournal(), true);
     popup.clearPartner();
     assert.equal(popup.state.partnerId, false);
     assert.equal(popup.state.destJournalId, 4);
@@ -218,10 +217,12 @@ assert.match(xml, /t-else="" id="kai_cash_move_journal_locked"/);
     assert.equal(popup.state.type, "out");
     assert.equal(popup.state.partnerId, false);
     assert.equal(popup.state.destJournalId, false);
-    assert.equal(popup.showDestJournal(), false);
-    popup.state.destJournalId = 4;
     assert.equal(extrasOf(popup).dest_journal_id, undefined);
-    assert.equal(popup.state.destJournalId, false);
+    popup.onDestJournalChange({ target: { value: "4" } });
+    assert.equal(popup.state.destJournalId, 4);
+    const chosen = extrasOf(popup);
+    assert.equal(chosen.dest_journal_id, 4);
+    assert.equal(chosen.cash_partner_id, undefined);
 }
 
 const popupJs = readFileSync(
@@ -259,14 +260,17 @@ assert.equal(xml.includes("Sin otro diario"), false);
         undefined
     );
 
-    // Salida keeps the same empty-option label once a contact unlocks the select.
+    // Salida keeps the same empty-option label with no contact.
     popup.onClickButton("out");
     assert.equal(popup.state.type, "out");
-    assert.equal(popup.showDestJournal(), false);
+    assert.equal(popup.state.partnerId, false);
     assert.equal(popup.state.sessionCashJournalName, "Caja Blinis");
+    assert.equal(popup.state.destJournalId, false);
+    const salidaSinContacto = popup._prepareTryCashInOutPayload("out", 10, "Pago", 1, {});
+    assert.equal(salidaSinContacto.at(-1).dest_journal_id, undefined);
+    assert.equal(salidaSinContacto.at(-1).cash_partner_id, undefined);
     popup.state.partnerId = 42;
     popup.state.partnerName = "Proveedor";
-    assert.equal(popup.showDestJournal(), true);
     assert.equal(popup.state.destJournalId, false);
     const salida = popup._prepareTryCashInOutPayload("out", 10, "Pago", 1, {});
     assert.equal(salida.at(-1).dest_journal_id, undefined);
