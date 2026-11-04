@@ -57,9 +57,8 @@
                 </div>
 
                 <div>
-                    <label class="form-label mb-1" t-att-for="this.showDestJournal() ? 'kai_cash_move_journal' : false">Diario destino</label>
-                    <select t-if="this.showDestJournal()"
-                            id="kai_cash_move_journal"
+                    <label class="form-label mb-1" for="kai_cash_move_journal">Diario destino</label>
+                    <select id="kai_cash_move_journal"
                             class="form-select"
                             t-key="state.type"
                             t-att-value="state.destJournalId || ''"
@@ -73,9 +72,8 @@
                             <t t-esc="journal.name"/>
                         </option>
                     </select>
-                    <div t-else="" id="kai_cash_move_journal_locked" class="text-muted small">Elegí un contacto para poder elegir el diario.</div>
                 </div>
-                <div t-if="state.destJournalId and this.showDestJournal()" class="text-muted small">
+                <div t-if="state.destJournalId" class="text-muted small">
                     La plata pasa a ese diario. No se aplican facturas.
                 </div>
             </div>
