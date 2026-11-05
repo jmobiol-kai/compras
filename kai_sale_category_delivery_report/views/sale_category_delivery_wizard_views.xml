@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_kai_sale_category_delivery_wizard_form" model="ir.ui.view">
+        <field name="name">kai.sale.category.delivery.wizard.form</field>
+        <field name="model">kai.sale.category.delivery.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Productos por categoría y fecha de entrega">
+                <group>
+                    <group>
+                        <field name="categ_ids" widget="many2many_tags" options="{'no_create': True}"/>
+                        <field name="delivery_date"/>
+                        <field name="include_draft"/>
+                    </group>
+                    <group>
+                        <field name="partner_id"
+                               options="{'no_create': True, 'no_create_edit': True}"
+                               placeholder="Nombre, CUIT, correo o referencia"/>
+                    </group>
+                </group>
+                <footer>
+                    <button name="action_show" type="object" string="Mostrar" class="btn-primary"/>
+                    <button string="Cerrar" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_kai_sale_category_delivery_wizard_vendor" model="ir.ui.view">
+        <field name="name">kai.sale.category.delivery.wizard.vendor</field>
+        <field name="model">kai.sale.category.delivery.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Proveedor de la orden de compra">
+                <group>
+                    <field name="partner_id"
+                           required="1"
+                           options="{'no_create': True, 'no_create_edit': True}"
+                           placeholder="Nombre, CUIT, correo o referencia"/>
+                </group>
+                <p class="text-muted">
+                    Se crea una sola orden de compra en borrador con los productos
+                    comprables del informe. La cantidad es la del informe; la unidad
+                    es la del proveedor en su lista de precios, o la unidad del
+                    producto si no tiene.
+                </p>
+                <footer>
+                    <button name="action_create_purchase_order" type="object"
+                            string="Crear orden de compra" class="btn-primary"
+                            context="{'vendor_confirmed': True}"/>
+                    <button string="Cancelar" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_kai_sale_category_delivery_wizard" model="ir.actions.act_window">
+        <field name="name">Productos por categoría y fecha de entrega</field>
+        <field name="res_model">kai.sale.category.delivery.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_kai_sale_category_delivery_wizard_form"/>
+        <field name="target">new</field>
+    </record>
+
+    <!--
+        Parent sale.menu_sale_report is "Reporting" / "Informes".
+        In Odoo 19 that menu is limited to Sales / Administrator.
+    -->
+    <menuitem id="menu_kai_sale_category_delivery_report"
+              name="Productos por categoría y fecha de entrega"
+              parent="sale.menu_sale_report"
+              action="action_kai_sale_category_delivery_wizard"
+              groups="sales_team.group_sale_salesman"
+              sequence="50"/>
+</odoo>
