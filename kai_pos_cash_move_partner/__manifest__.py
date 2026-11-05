@@ -1,10 +1,10 @@
 {
     'name': 'POS: contacto en entrada y salida de efectivo',
     'summary': (
-        'El cajero asigna contacto, facturas o diario destino al confirmar '
+        'El cajero asigna contacto, facturas o diario al confirmar '
         'la entrada o salida de efectivo'
     ),
-    'version': '19.0.1.2.2',
+    'version': '19.0.1.2.3',
     'category': 'Sales/Point of Sale',
     'author': 'Kaizendo',
     'license': 'LGPL-3',

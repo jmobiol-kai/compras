@@ -57,7 +57,7 @@
                 </div>
 
                 <div>
-                    <label class="form-label mb-1" for="kai_cash_move_journal">Diario destino</label>
+                    <label class="form-label mb-1" for="kai_cash_move_journal">Diario</label>
                     <select id="kai_cash_move_journal"
                             class="form-select"
                             t-key="state.type"
