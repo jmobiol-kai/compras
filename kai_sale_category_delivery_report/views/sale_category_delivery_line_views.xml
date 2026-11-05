@@ -10,9 +10,6 @@
                             string="Generar orden de compra"
                             class="btn-primary"
                             display="always"/>
-                    <button name="action_print_pdf" type="object"
-                            string="PDF"
-                            display="always"/>
                 </header>
                 <field name="default_code"/>
                 <field name="product_name"/>

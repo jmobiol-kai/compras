@@ -1,4 +1,4 @@
-"""Calendar window, sale states and shared-vendor rule.
+"""Calendar window and sale states.
 
 Run from the repo root:
 
@@ -53,13 +53,6 @@ class TestReportRules(unittest.TestCase):
             rules.sale_states(True),
             ('sale', 'done', 'draft', 'sent'),
         )
-
-    def test_shared_preferred_seller(self):
-        # Facturas 2026-11-05: the three products share Fernandez (id 69).
-        self.assertEqual(rules.shared_preferred_partner_id([69, 69, 69]), 69)
-        self.assertIsNone(rules.shared_preferred_partner_id([69, 70, 69]))
-        self.assertIsNone(rules.shared_preferred_partner_id([69, None]))
-        self.assertIsNone(rules.shared_preferred_partner_id([]))
 
 
 if __name__ == '__main__':

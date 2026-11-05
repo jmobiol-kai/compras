@@ -6,7 +6,6 @@ from .report_rules import (
     commitment_utc_window,
     resolve_tz_name,
     sale_states,
-    shared_preferred_partner_id,
 )
 
 
@@ -33,9 +32,8 @@ class KaiSaleCategoryDeliveryWizard(models.TransientModel):
     partner_id = fields.Many2one(
         'res.partner',
         string='Proveedor',
-        help='Proveedor de la orden de compra. Si todos los productos comprables '
-             'comparten el mismo proveedor preferido (lista de precios de proveedor), '
-             'se propone ese. No se filtra por supplier_rank.',
+        help='Proveedor de la orden de compra. Hay que elegirlo en este '
+             'asistente antes de mostrar el informe. No se filtra por supplier_rank.',
     )
     line_ids = fields.One2many(
         'kai.sale.category.delivery.line',
@@ -60,28 +58,14 @@ class KaiSaleCategoryDeliveryWizard(models.TransientModel):
             ('product_id.categ_id', 'child_of', self.categ_ids.ids),
         ]
 
-    def _suggest_partner(self):
-        """Fill the vendor when every purchasable product shares one seller.
-
-        Does not replace a partner the user already chose. Products that are
-        not purchasable (for example a delivery service) are ignored.
-        """
-        self.ensure_one()
-        if self.partner_id:
-            return
-        products = self.line_ids.product_id.filtered('purchase_ok')
-        preferred_ids = []
-        for product in products:
-            seller = product._prepare_sellers()[:1]
-            preferred_ids.append(seller.partner_id.id or None)
-        partner_id = shared_preferred_partner_id(preferred_ids)
-        if partner_id:
-            self.partner_id = partner_id
-
     def action_show(self):
         self.ensure_one()
         if not self.categ_ids:
             raise UserError(_('Seleccione al menos una categoría.'))
+        if not self.partner_id:
+            raise UserError(_(
+                'Seleccione un proveedor antes de mostrar el informe.'
+            ))
         self.line_ids.unlink()
         groups = self.env['sale.order.line']._read_group(
             self._line_domain(),
@@ -122,7 +106,6 @@ class KaiSaleCategoryDeliveryWizard(models.TransientModel):
                 'purchase_ok': bool(product.purchase_ok),
             })
         self.env['kai.sale.category.delivery.line'].create(vals_list)
-        self._suggest_partner()
         list_view = self.env.ref(
             'kai_sale_category_delivery_report.view_kai_sale_category_delivery_line_list'
         )
@@ -146,21 +129,8 @@ class KaiSaleCategoryDeliveryWizard(models.TransientModel):
             },
         }
 
-    def action_print_pdf(self):
-        self.ensure_one()
-        if not self.line_ids:
-            raise UserError(_('No hay productos en el informe. Vuelva a generarlo.'))
-        return self.env.ref(
-            'kai_sale_category_delivery_report.action_report_kai_sale_category_delivery'
-        ).report_action(self)
-
     def action_create_purchase_order(self):
-        """Ask for the vendor, then open one draft purchase order.
-
-        The list button lands here without ``vendor_confirmed``. The vendor
-        dialog confirms the partner (prefilled when every product shares a
-        seller) and calls this method again.
-        """
+        """Open one draft purchase order for the vendor chosen on the wizard."""
         self.ensure_one()
         if not self.line_ids:
             raise UserError(_('No hay productos en el informe. Vuelva a generarlo.'))
@@ -169,10 +139,12 @@ class KaiSaleCategoryDeliveryWizard(models.TransientModel):
                 'No tiene permisos para crear órdenes de compra. '
                 'Hace falta el grupo de compras (Usuario).'
             ))
-        if not self.env.context.get('vendor_confirmed'):
-            return self._action_vendor_dialog()
         if not self.partner_id:
-            raise UserError(_('Seleccione un proveedor para generar la orden de compra.'))
+            raise UserError(_(
+                'Falta el proveedor. Vuelva a abrir el asistente, elija un '
+                'proveedor y pulse Mostrar de nuevo antes de generar la orden '
+                'de compra.'
+            ))
         order = self._create_purchase_order()
         return {
             'type': 'ir.actions.act_window',
@@ -182,21 +154,6 @@ class KaiSaleCategoryDeliveryWizard(models.TransientModel):
             'view_mode': 'form',
             'views': [(False, 'form')],
             'target': 'current',
-        }
-
-    def _action_vendor_dialog(self):
-        self.ensure_one()
-        view = self.env.ref(
-            'kai_sale_category_delivery_report.view_kai_sale_category_delivery_wizard_vendor'
-        )
-        return {
-            'type': 'ir.actions.act_window',
-            'name': _('Proveedor de la orden de compra'),
-            'res_model': self._name,
-            'res_id': self.id,
-            'view_mode': 'form',
-            'views': [(view.id, 'form')],
-            'target': 'new',
         }
 
     def _purchase_qty_uom(self, product, qty_in_product_uom):

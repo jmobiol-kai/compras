@@ -36,6 +36,3 @@ class KaiSaleCategoryDeliveryLine(models.TransientModel):
 
     def action_create_purchase_order(self):
         return self._wizard().action_create_purchase_order()
-
-    def action_print_pdf(self):
-        return self._wizard().action_print_pdf()

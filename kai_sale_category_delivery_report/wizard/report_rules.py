@@ -1,6 +1,6 @@
 """Pure rules for the category / delivery-date sales report.
 
-Kept free of the ORM so the calendar window and the vendor suggestion can be
+Kept free of the ORM so the calendar window and the sale-state filter can be
 checked without a database. Odoo stores ``commitment_date`` as naive UTC.
 """
 from datetime import datetime, time, timedelta
@@ -48,18 +48,3 @@ def sale_states(include_quotes):
     if include_quotes:
         return CONFIRMED_STATES + QUOTE_STATES
     return CONFIRMED_STATES
-
-
-def shared_preferred_partner_id(preferred_partner_ids):
-    """Partner id when every purchasable product has that same preferred seller.
-
-    ``None`` (or another falsy id) means that product has no seller. An empty
-    sequence means there is nothing to buy, so nothing is suggested.
-    """
-    partner_ids = list(preferred_partner_ids)
-    if not partner_ids or any(not partner_id for partner_id in partner_ids):
-        return None
-    first = partner_ids[0]
-    if all(partner_id == first for partner_id in partner_ids):
-        return first
-    return None

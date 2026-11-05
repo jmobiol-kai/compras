@@ -20,15 +20,14 @@ sale (no hay estado done en el selection estándar); done queda en el filtro
 para no perder filas históricas. «Incluir presupuestos» suma draft y sent.
 No entran secciones, subsecciones ni notas (display_type).
 
-Generar orden de compra pide un proveedor (no se inventa ni se filtra por
-supplier_rank: en esta base los proveedores están en product.supplierinfo).
-Si todos los productos comprables comparten el mismo proveedor preferido, se
-propone. La OC es un borrador, una sola, con una línea por producto comprable
-(purchase_ok). La cantidad es la del informe, en la unidad del proveedor o en
-la del producto. El tipo de recepción sale del default de la compañía
-(purchase_stock).
+El asistente pide el proveedor antes de mostrar el listado (no se inventa
+ni se filtra por supplier_rank: en esta base los proveedores están en
+product.supplierinfo). «Generar orden de compra» crea de inmediato una sola
+OC en borrador, con una línea por producto comprable (purchase_ok). La
+cantidad es la del informe, en la unidad del proveedor o en la del producto.
+El tipo de recepción sale del default de la compañía (purchase_stock).
 """,
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.0.1',
     'category': 'Sales',
     'author': 'Kaizendo',
     'license': 'LGPL-3',
@@ -37,7 +36,6 @@ la del producto. El tipo de recepción sale del default de la compañía
         'security/ir.model.access.csv',
         'views/sale_category_delivery_line_views.xml',
         'views/sale_category_delivery_wizard_views.xml',
-        'views/sale_category_delivery_report.xml',
     ],
     'installable': True,
     'application': False,
