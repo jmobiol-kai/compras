@@ -36,11 +36,12 @@ patch(CashMovePopup.prototype, {
     },
 
     /**
-     * Entrada and salida do not share a contact, its comprobantes, or a
-     * destination journal. Changing direction drops those choices so a bill
-     * picked for a cash out cannot stay selected on a cash in, and the other
-     * way around. Amount and reason stay. Clicking the direction that is
-     * already selected does not wipe the form.
+     * Entrada and salida do not share an amount, a reason, a contact, its
+     * comprobantes, or a journal. Changing direction clears ``state.amount``
+     * (core POS Input), ``state.reason`` (textarea ``#reason``), the contact
+     * (``partnerId``) and ``destJournalId`` so nothing typed for a cash out
+     * stays on a cash in, and the other way around. Clicking the direction
+     * that is already selected does not wipe the form.
      */
     onClickButton(type) {
         const typeChanged = this.state.type !== type;
@@ -51,6 +52,8 @@ patch(CashMovePopup.prototype, {
         // A search started before the click must not refill the lists.
         this._moveRequest++;
         this._partnerRequest++;
+        this.state.amount = "";
+        this.state.reason = "";
         this.clearPartner();
         this.state.partnerChoices = [];
         this.state.destJournalId = false;
