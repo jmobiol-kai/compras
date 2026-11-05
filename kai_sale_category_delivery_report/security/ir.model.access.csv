@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_kai_sale_categ_delivery_wizard_sale_user,kai.sale.category.delivery.wizard.sale.user,model_kai_sale_category_delivery_wizard,sales_team.group_sale_salesman,1,1,1,1
+access_kai_sale_categ_delivery_line_sale_user,kai.sale.category.delivery.line.sale.user,model_kai_sale_category_delivery_line,sales_team.group_sale_salesman,1,1,1,1
+access_kai_sale_categ_delivery_wizard_purchase_user,kai.sale.category.delivery.wizard.purchase.user,model_kai_sale_category_delivery_wizard,purchase.group_purchase_user,1,1,1,1
+access_kai_sale_categ_delivery_line_purchase_user,kai.sale.category.delivery.line.purchase.user,model_kai_sale_category_delivery_line,purchase.group_purchase_user,1,1,1,1

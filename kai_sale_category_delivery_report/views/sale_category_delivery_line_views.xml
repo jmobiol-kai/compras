@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_kai_sale_category_delivery_line_list" model="ir.ui.view">
+        <field name="name">kai.sale.category.delivery.line.list</field>
+        <field name="model">kai.sale.category.delivery.line</field>
+        <field name="arch" type="xml">
+            <list string="Productos" create="false" edit="false" delete="false">
+                <header>
+                    <button name="action_create_purchase_order" type="object"
+                            string="Generar orden de compra"
+                            class="btn-primary"
+                            display="always"/>
+                    <button name="action_print_pdf" type="object"
+                            string="PDF"
+                            display="always"/>
+                </header>
+                <field name="default_code"/>
+                <field name="product_name"/>
+                <field name="categ_id"/>
+                <field name="product_uom_id"/>
+                <field name="quantity" sum="Total"/>
+                <field name="purchase_ok" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_kai_sale_category_delivery_line_search" model="ir.ui.view">
+        <field name="name">kai.sale.category.delivery.line.search</field>
+        <field name="model">kai.sale.category.delivery.line</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="default_code"/>
+                <field name="product_name"/>
+                <field name="categ_id"/>
+                <filter string="Se compra" name="purchase_ok" domain="[('purchase_ok', '=', True)]"/>
+                <filter string="No se compra" name="not_purchase_ok" domain="[('purchase_ok', '=', False)]"/>
+                <group>
+                    <filter string="Categoría" name="group_categ" context="{'group_by': 'categ_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+</odoo>
