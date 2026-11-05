@@ -63,6 +63,8 @@ assert.match(
 assert.equal(xml.includes("showDestJournal"), false);
 assert.equal(xml.includes("kai_cash_move_journal_locked"), false);
 assert.equal(xml.includes("Elegí un contacto para poder elegir el diario."), false);
+assert.match(xml, /for="kai_cash_move_journal">Diario<\/label>/);
+assert.equal(xml.includes("Diario destino"), false);
 
 {
     const popup = makePopup({
