@@ -13,6 +13,7 @@
                     </group>
                     <group>
                         <field name="partner_id"
+                               required="1"
                                options="{'no_create': True, 'no_create_edit': True}"
                                placeholder="Nombre, CUIT, correo o referencia"/>
                     </group>
@@ -20,33 +21,6 @@
                 <footer>
                     <button name="action_show" type="object" string="Mostrar" class="btn-primary"/>
                     <button string="Cerrar" special="cancel" class="btn-secondary"/>
-                </footer>
-            </form>
-        </field>
-    </record>
-
-    <record id="view_kai_sale_category_delivery_wizard_vendor" model="ir.ui.view">
-        <field name="name">kai.sale.category.delivery.wizard.vendor</field>
-        <field name="model">kai.sale.category.delivery.wizard</field>
-        <field name="arch" type="xml">
-            <form string="Proveedor de la orden de compra">
-                <group>
-                    <field name="partner_id"
-                           required="1"
-                           options="{'no_create': True, 'no_create_edit': True}"
-                           placeholder="Nombre, CUIT, correo o referencia"/>
-                </group>
-                <p class="text-muted">
-                    Se crea una sola orden de compra en borrador con los productos
-                    comprables del informe. La cantidad es la del informe; la unidad
-                    es la del proveedor en su lista de precios, o la unidad del
-                    producto si no tiene.
-                </p>
-                <footer>
-                    <button name="action_create_purchase_order" type="object"
-                            string="Crear orden de compra" class="btn-primary"
-                            context="{'vendor_confirmed': True}"/>
-                    <button string="Cancelar" special="cancel" class="btn-secondary"/>
                 </footer>
             </form>
         </field>
