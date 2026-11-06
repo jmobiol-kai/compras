@@ -167,7 +167,7 @@ class KaiSaleCategoryDeliveryWizard(models.TransientModel):
             (raw,),
         )
 
-    def _store_report(self, rows):
+    def _store_report(self, rows, legacy_purchase_ids):
         line_model = self.env['kai.sale.category.delivery.line']
         origin_model = self.env['kai.sale.category.delivery.origin']
         for row in rows:
@@ -185,6 +185,7 @@ class KaiSaleCategoryDeliveryWizard(models.TransientModel):
                 'coverage_state': row['coverage_state'],
                 'purchase_ok': row['purchase_ok'],
                 'sale_order_ids': [(6, 0, row['sale_order_ids'])],
+                'legacy_purchase_ids': [(6, 0, list(legacy_purchase_ids))],
             })
             origin_model.create([
                 {
@@ -214,7 +215,8 @@ class KaiSaleCategoryDeliveryWizard(models.TransientModel):
         plan = plan_purchase(self._snapshots(sale_lines), self._covered_map(sale_lines))
         if plan['reason'] == 'empty':
             raise self._no_demand_error()
-        self._store_report(plan['rows'])
+        legacy = self._legacy_purchase_orders()
+        self._store_report(plan['rows'], legacy.ids)
         list_view = self.env.ref(
             'kai_sale_category_delivery_report.view_kai_sale_category_delivery_line_list'
         )
@@ -238,7 +240,7 @@ class KaiSaleCategoryDeliveryWizard(models.TransientModel):
                 'create': False,
                 'edit': False,
                 'delete': False,
-                'legacy_purchase_ids': self._legacy_purchase_orders().ids,
+                'legacy_purchase_ids': legacy.ids,
             },
         }
 

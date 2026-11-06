@@ -39,7 +39,17 @@ class KaiSaleCategoryDeliveryLine(models.TransientModel):
     purchase_ok = fields.Boolean(string='Se compra')
     sale_order_ids = fields.Many2many(
         'sale.order',
+        'kai_scdr_line_sale_order_rel',
+        'line_id',
+        'sale_id',
         string='Pedidos de venta',
+    )
+    legacy_purchase_ids = fields.Many2many(
+        'purchase.order',
+        'kai_scdr_line_legacy_po_rel',
+        'line_id',
+        'purchase_id',
+        string='Compras anteriores sin trazabilidad',
     )
     origin_ids = fields.One2many(
         'kai.sale.category.delivery.origin',
@@ -79,8 +89,15 @@ class KaiSaleCategoryDeliveryLine(models.TransientModel):
         }
 
     def action_open_legacy_purchases(self):
-        legacy_ids = list(self.env.context.get('legacy_purchase_ids') or [])
-        if not legacy_ids:
+        orders = self.legacy_purchase_ids
+        if not orders:
+            # The list header evaluates the action context, where the same
+            # ids travel under this name. The field above is what the view
+            # validator requires.
+            orders = self.env['purchase.order'].browse(
+                list(self.env.context.get('legacy_purchase_ids') or [])
+            ).exists()
+        if not orders:
             raise UserError(_(
                 'No hay compras anteriores de esa fecha sin trazabilidad.'
             ))
@@ -90,7 +107,7 @@ class KaiSaleCategoryDeliveryLine(models.TransientModel):
             'res_model': 'purchase.order',
             'view_mode': 'list,form',
             'views': [(False, 'list'), (False, 'form')],
-            'domain': [('id', 'in', legacy_ids)],
+            'domain': [('id', 'in', orders.ids)],
             'target': 'current',
             # Same override as the generated PO: the report context is not editable.
             'context': purchase_order_action_context(),

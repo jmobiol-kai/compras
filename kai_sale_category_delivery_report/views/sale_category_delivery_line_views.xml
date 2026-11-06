@@ -29,6 +29,7 @@
                        decoration-success="coverage_state == 'covered'"
                        decoration-danger="coverage_state == 'over'"/>
                 <field name="purchase_ok" optional="show"/>
+                <field name="legacy_purchase_ids" column_invisible="True"/>
                 <button name="action_open_origins" type="object" icon="fa-external-link"
                         string="Origen" title="Pedidos y cantidades que componen esta línea"/>
             </list>

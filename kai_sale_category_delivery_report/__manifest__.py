@@ -46,7 +46,7 @@ el informe lo marca excedido y no genera otra compra por esa línea. No se
 puede borrar una línea de venta que siga cubierta. Las compras anteriores
 sin este vínculo no descuentan, aunque el origen diga la fecha de entrega.
 """,
-    'version': '19.0.1.0.3',
+    'version': '19.0.1.0.4',
     'category': 'Sales',
     'author': 'Kaizendo',
     'license': 'LGPL-3',
