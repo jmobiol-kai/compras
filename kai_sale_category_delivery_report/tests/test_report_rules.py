@@ -105,8 +105,8 @@ class TestReportRules(unittest.TestCase):
         self.assertIn("'edit': False", wizard)
         self.assertIn('purchase_order_action_context()', wizard)
         self.assertNotIn("sudo", wizard)
-        # The generated order is a draft: state is not forced to purchase.
-        self.assertNotIn("'state'", wizard)
+        # The generated order is a draft: nothing writes a purchase state.
+        self.assertNotIn("'state':", wizard)
 
 
 if __name__ == '__main__':

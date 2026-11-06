@@ -32,16 +32,31 @@ El formulario que se abre es el de compras estándar y queda editable en
 borrador (referencia de proveedor y diario de compras de la compañía). El
 listado del informe sigue sin edición. No se tocan los readonly de una OC
 confirmada o bloqueada, ni las reglas multi-compañía.
+
+Cada línea de compra guarda qué líneas de venta cubre y en qué cantidad
+(unidad del producto, misma compañía). El informe muestra demanda, cubierto
+y pendiente, y abre esos pedidos. Un borrador, una solicitud enviada, una
+compra por aprobar y una compra confirmada cuentan. Cancelar no borra el
+vínculo, pero deja de cubrir; si la compra vuelve a borrador, cubre otra vez.
+Bajar la cantidad de la línea de compra suelta el excedente desde el vínculo
+más nuevo. Subirla no cubre más ventas. Cambiar el producto suelta los
+vínculos. Bajar o subir la cantidad vendida no modifica la compra: lo que
+sobre queda pendiente y se puede comprar; si lo cubierto supera a la venta,
+el informe lo marca excedido y no genera otra compra por esa línea. No se
+puede borrar una línea de venta que siga cubierta. Las compras anteriores
+sin este vínculo no descuentan, aunque el origen diga la fecha de entrega.
 """,
-    'version': '19.0.1.0.2',
+    'version': '19.0.1.0.3',
     'category': 'Sales',
     'author': 'Kaizendo',
     'license': 'LGPL-3',
     'depends': ['sale', 'purchase'],
     'data': [
         'security/ir.model.access.csv',
+        'security/sale_po_allocation_rules.xml',
         'views/sale_category_delivery_line_views.xml',
         'views/sale_category_delivery_wizard_views.xml',
+        'views/purchase_order_views.xml',
     ],
     'installable': True,
     'application': False,

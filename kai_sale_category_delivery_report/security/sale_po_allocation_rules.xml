@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="kai_sale_po_allocation_company_rule" model="ir.rule">
+        <field name="name">Cobertura venta-compra por compañía</field>
+        <field name="model_id" ref="model_kai_sale_po_allocation"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        <field name="global" eval="True"/>
+    </record>
+</odoo>

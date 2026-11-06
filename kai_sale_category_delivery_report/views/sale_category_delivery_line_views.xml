@@ -4,19 +4,33 @@
         <field name="name">kai.sale.category.delivery.line.list</field>
         <field name="model">kai.sale.category.delivery.line</field>
         <field name="arch" type="xml">
-            <list string="Productos" create="false" edit="false" delete="false">
+            <list string="Productos" create="false" edit="false" delete="false"
+                  decoration-muted="coverage_state == 'covered'">
                 <header>
                     <button name="action_create_purchase_order" type="object"
                             string="Generar orden de compra"
                             class="btn-primary"
                             display="always"/>
+                    <button name="action_open_legacy_purchases" type="object"
+                            string="Compras anteriores sin trazabilidad"
+                            display="always"
+                            invisible="not legacy_purchase_ids"/>
                 </header>
                 <field name="default_code"/>
                 <field name="product_name"/>
                 <field name="categ_id"/>
                 <field name="product_uom_id"/>
-                <field name="quantity" sum="Total"/>
+                <field name="qty_demand" sum="Demanda"/>
+                <field name="qty_covered" sum="Cubierto"/>
+                <field name="quantity" sum="Pendiente"/>
+                <field name="coverage_state" widget="badge"
+                       decoration-info="coverage_state == 'pending'"
+                       decoration-warning="coverage_state == 'partial'"
+                       decoration-success="coverage_state == 'covered'"
+                       decoration-danger="coverage_state == 'over'"/>
                 <field name="purchase_ok" optional="show"/>
+                <button name="action_open_origins" type="object" icon="fa-external-link"
+                        string="Origen" title="Pedidos y cantidades que componen esta línea"/>
             </list>
         </field>
     </record>
@@ -31,10 +45,37 @@
                 <field name="categ_id"/>
                 <filter string="Se compra" name="purchase_ok" domain="[('purchase_ok', '=', True)]"/>
                 <filter string="No se compra" name="not_purchase_ok" domain="[('purchase_ok', '=', False)]"/>
+                <separator/>
+                <filter string="Con pendiente" name="pending" domain="[('coverage_state', 'in', ('pending', 'partial'))]"/>
+                <filter string="Cubierto" name="covered" domain="[('coverage_state', '=', 'covered')]"/>
+                <filter string="Excedido" name="over" domain="[('coverage_state', '=', 'over')]"/>
                 <group>
                     <filter string="Categoría" name="group_categ" context="{'group_by': 'categ_id'}"/>
                 </group>
             </search>
+        </field>
+    </record>
+
+    <record id="view_kai_sale_category_delivery_origin_list" model="ir.ui.view">
+        <field name="name">kai.sale.category.delivery.origin.list</field>
+        <field name="model">kai.sale.category.delivery.origin</field>
+        <field name="arch" type="xml">
+            <list string="Origen" create="false" edit="false" delete="false">
+                <field name="sale_order_name"/>
+                <field name="sale_order_id"/>
+                <field name="sale_line_id"/>
+                <field name="product_uom_id"/>
+                <field name="qty_demand"/>
+                <field name="qty_covered"/>
+                <field name="qty_pending"/>
+                <field name="coverage_state" widget="badge"
+                       decoration-info="coverage_state == 'pending'"
+                       decoration-warning="coverage_state == 'partial'"
+                       decoration-success="coverage_state == 'covered'"
+                       decoration-danger="coverage_state == 'over'"/>
+                <button name="action_open_sale_order" type="object" icon="fa-external-link"
+                        string="Abrir pedido" title="Abrir el pedido de venta"/>
+            </list>
         </field>
     </record>
 </odoo>

@@ -1,7 +1,10 @@
+import html
+
 from odoo import _, fields, models
 from odoo.exceptions import UserError
-from odoo.tools.float_utils import float_compare, float_is_zero, float_round
+from odoo.tools.float_utils import float_is_zero
 
+from .allocation_rules import cap_allocation_quantities, plan_purchase, same_company
 from .report_rules import (
     commitment_utc_window,
     purchase_order_action_context,
@@ -53,6 +56,150 @@ class KaiSaleCategoryDeliveryWizard(models.TransientModel):
             ('product_id.categ_id', 'child_of', self.categ_ids.ids),
         ]
 
+    def _no_demand_error(self):
+        return UserError(_(
+            'No hay productos de esas categorías en pedidos con fecha de '
+            'entrega el %s.',
+            self.delivery_date,
+        ))
+
+    def _nothing_pending_error(self):
+        return UserError(_(
+            'No hay cantidades pendientes para comprar. Esas ventas ya están '
+            'cubiertas por órdenes de compra; un borrador también cuenta. '
+            'Cancelar la compra libera la demanda.'
+        ))
+
+    def _sale_lines(self):
+        return self.env['sale.order.line'].search(
+            self._line_domain(), order='order_id, id',
+        )
+
+    def _check_sale_companies(self, sale_lines):
+        company_ids = sale_lines.order_id.company_id.ids
+        if not same_company(company_ids, self.env.company.id):
+            raise UserError(_(
+                'El informe mezcla compañías. Genérelo de nuevo con una sola '
+                'compañía activa.'
+            ))
+
+    def _qty_in_product_uom(self, sale_line):
+        product = sale_line.product_id
+        qty = sale_line.product_uom_qty
+        uom = sale_line.product_uom_id
+        if uom and product.uom_id and uom != product.uom_id:
+            qty = uom._compute_quantity(
+                qty, product.uom_id, rounding_method='HALF-UP',
+            )
+        return qty
+
+    def _snapshots(self, sale_lines):
+        snapshots = []
+        for sale_line in sale_lines:
+            product = sale_line.product_id
+            if not product or sale_line.display_type:
+                continue
+            if sale_line.order_id.company_id != self.env.company:
+                continue
+            snapshots.append({
+                'sale_line_id': sale_line.id,
+                'sale_order_id': sale_line.order_id.id,
+                'sale_order_name': sale_line.order_id.name or '',
+                'product_id': product.id,
+                'qty_demand': self._qty_in_product_uom(sale_line),
+                'purchase_ok': bool(product.purchase_ok),
+                'default_code': product.default_code or '',
+                'product_name': product.with_context(
+                    display_default_code=False,
+                ).display_name,
+                'categ_id': product.categ_id.id,
+                'categ_complete_name': product.categ_id.complete_name or '',
+                'product_uom_id': product.uom_id.id,
+                'rounding': product.uom_id.rounding or 0.01,
+            })
+        return snapshots
+
+    def _covered_map(self, sale_lines):
+        if not sale_lines:
+            return {}
+        rows = self.env['kai.sale.po.allocation']._read_group(
+            [
+                ('sale_line_id', 'in', sale_lines.ids),
+                ('purchase_state', '!=', 'cancel'),
+            ],
+            ['sale_line_id'],
+            ['quantity:sum'],
+        )
+        covered = {}
+        for sale_line, qty in rows:
+            if sale_line:
+                covered[sale_line.id] = qty
+        return covered
+
+    def _legacy_purchase_orders(self):
+        """Purchases labeled for this day that have no coverage rows.
+
+        They are not subtracted from demand. The label is the same text this
+        wizard writes on ``origin``; a purchase with any other origin is left
+        alone, even if it happens to buy the same products.
+        """
+        date_str = fields.Date.to_string(self.delivery_date)
+        labels = {
+            _('Entrega %s', date_str),
+            'Entrega %s' % date_str,
+        }
+        return self.env['purchase.order'].search([
+            ('company_id', '=', self.env.company.id),
+            ('origin', 'in', list(labels)),
+            ('kai_allocation_ids', '=', False),
+            ('state', '!=', 'cancel'),
+        ])
+
+    def _advisory_lock(self):
+        """Serialize generation for this company, day and categories."""
+        raw = '%s|%s|%s' % (
+            self.env.company.id,
+            fields.Date.to_string(self.delivery_date),
+            ','.join(str(categ_id) for categ_id in sorted(self.categ_ids.ids)),
+        )
+        self.env.cr.execute(
+            'SELECT pg_advisory_xact_lock(hashtext(%s))',
+            (raw,),
+        )
+
+    def _store_report(self, rows):
+        line_model = self.env['kai.sale.category.delivery.line']
+        origin_model = self.env['kai.sale.category.delivery.origin']
+        for row in rows:
+            line = line_model.create({
+                'wizard_id': self.id,
+                'product_id': row['product_id'],
+                'default_code': row['default_code'],
+                'product_name': row['product_name'],
+                'categ_id': row['categ_id'],
+                'categ_complete_name': row['categ_complete_name'],
+                'product_uom_id': row['product_uom_id'],
+                'qty_demand': row['qty_demand'],
+                'qty_covered': row['qty_covered'],
+                'quantity': row['qty_pending'],
+                'coverage_state': row['coverage_state'],
+                'purchase_ok': row['purchase_ok'],
+                'sale_order_ids': [(6, 0, row['sale_order_ids'])],
+            })
+            origin_model.create([
+                {
+                    'line_id': line.id,
+                    'sale_line_id': origin['sale_line_id'],
+                    'sale_order_id': origin['sale_order_id'],
+                    'sale_order_name': origin['sale_order_name'],
+                    'qty_demand': origin['qty_demand'],
+                    'qty_covered': origin['qty_covered'],
+                    'qty_pending': origin['qty_pending'],
+                    'coverage_state': origin['coverage_state'],
+                }
+                for origin in row['origins']
+            ])
+
     def action_show(self):
         self.ensure_one()
         if not self.categ_ids:
@@ -62,45 +209,12 @@ class KaiSaleCategoryDeliveryWizard(models.TransientModel):
                 'Seleccione un proveedor antes de mostrar el informe.'
             ))
         self.line_ids.unlink()
-        groups = self.env['sale.order.line']._read_group(
-            self._line_domain(),
-            ['product_id', 'product_uom_id'],
-            ['product_uom_qty:sum'],
-        )
-        totals = {}
-        for product, uom, qty in groups:
-            if not product:
-                continue
-            if uom and uom != product.uom_id:
-                qty = uom._compute_quantity(
-                    qty, product.uom_id, rounding_method='HALF-UP',
-                )
-            totals[product] = totals.get(product, 0.0) + qty
-        if not totals:
-            raise UserError(_(
-                'No hay productos de esas categorías en pedidos con fecha de '
-                'entrega el %s.',
-                self.delivery_date,
-            ))
-
-        vals_list = []
-        for product, qty in totals.items():
-            rounding = product.uom_id.rounding or 0.01
-            qty = float_round(qty, precision_rounding=rounding)
-            vals_list.append({
-                'wizard_id': self.id,
-                'product_id': product.id,
-                'default_code': product.default_code or '',
-                'product_name': product.with_context(
-                    display_default_code=False,
-                ).display_name,
-                'categ_id': product.categ_id.id,
-                'categ_complete_name': product.categ_id.complete_name or '',
-                'product_uom_id': product.uom_id.id,
-                'quantity': qty,
-                'purchase_ok': bool(product.purchase_ok),
-            })
-        self.env['kai.sale.category.delivery.line'].create(vals_list)
+        sale_lines = self._sale_lines()
+        self._check_sale_companies(sale_lines)
+        plan = plan_purchase(self._snapshots(sale_lines), self._covered_map(sale_lines))
+        if plan['reason'] == 'empty':
+            raise self._no_demand_error()
+        self._store_report(plan['rows'])
         list_view = self.env.ref(
             'kai_sale_category_delivery_report.view_kai_sale_category_delivery_line_list'
         )
@@ -124,6 +238,7 @@ class KaiSaleCategoryDeliveryWizard(models.TransientModel):
                 'create': False,
                 'edit': False,
                 'delete': False,
+                'legacy_purchase_ids': self._legacy_purchase_orders().ids,
             },
         }
 
@@ -201,29 +316,80 @@ class KaiSaleCategoryDeliveryWizard(models.TransientModel):
         return picking_type.id
 
     def _create_purchase_order(self):
+        """Create one draft PO for the live pending quantity.
+
+        The transient list can be stale after a refresh or a double click.
+        Demand is read again under an advisory lock and row locks, and the
+        purchase lines are tied to the sale lines by allocation rows in the
+        same transaction. ``origin`` stays a date label; it is not coverage.
+        """
         self.ensure_one()
-        order_model = self.env['purchase.order']
-        commands_ready = []
-        skipped = []
-        for line in self.line_ids:
-            product = line.product_id
-            if not product.purchase_ok:
-                skipped.append(product.display_name)
-                continue
-            if float_compare(line.quantity, 0.0, precision_rounding=product.uom_id.rounding) <= 0:
-                continue
-            qty, purchase_uom = self._purchase_qty_uom(product, line.quantity)
-            if float_is_zero(qty, precision_rounding=purchase_uom.rounding):
-                continue
-            commands_ready.append((product, qty, purchase_uom))
-        if not commands_ready:
-            detail = ', '.join(skipped) if skipped else '-'
+        self._advisory_lock()
+        allocation_model = self.env['kai.sale.po.allocation']
+        sale_lines = self._sale_lines()
+        self._check_sale_companies(sale_lines)
+        allocation_model.lock_sale_lines(sale_lines)
+        locked_ids = set(sale_lines.ids)
+        sale_lines = self._sale_lines()
+        self._check_sale_companies(sale_lines)
+        extra = sale_lines.filtered(lambda line: line.id not in locked_ids)
+        if extra:
+            allocation_model.lock_sale_lines(extra)
+            sale_lines = self._sale_lines()
+            self._check_sale_companies(sale_lines)
+        plan = plan_purchase(self._snapshots(sale_lines), self._covered_map(sale_lines))
+        if plan['reason'] == 'empty':
+            raise self._no_demand_error()
+        if plan['reason'] == 'covered':
+            raise self._nothing_pending_error()
+        if plan['reason'] == 'not_purchasable':
+            detail = ', '.join(plan['skipped']) or '-'
             raise UserError(_(
-                'Ningún producto del listado se puede comprar. Omitidos: %s',
+                'Ningún producto pendiente se puede comprar. Omitidos: %s',
+                detail,
+            ))
+
+        products = self.env['product.product'].browse(
+            [purchase['product_id'] for purchase in plan['purchases']]
+        )
+        products_by_id = {product.id: product for product in products}
+        ready = []
+        rounded_out = []
+        for purchase in plan['purchases']:
+            product = products_by_id[purchase['product_id']]
+            qty, purchase_uom = self._purchase_qty_uom(product, purchase['quantity'])
+            if float_is_zero(qty, precision_rounding=purchase_uom.rounding):
+                rounded_out.append(purchase['product_name'] or product.display_name)
+                continue
+            # The purchase unit can round to less than the pending demand.
+            # Links must not cover more than this line will actually order.
+            ordered_product_qty = purchase_uom._compute_quantity(
+                qty, product.uom_id, rounding_method='HALF-UP',
+            )
+            capped = cap_allocation_quantities(
+                [item['quantity'] for item in purchase['allocations']],
+                ordered_product_qty,
+                purchase['rounding'],
+            )
+            allocations = []
+            for item, quantity in zip(purchase['allocations'], capped):
+                if float_is_zero(quantity, precision_rounding=purchase['rounding']):
+                    continue
+                allocations.append({**item, 'quantity': quantity})
+            if not allocations:
+                rounded_out.append(purchase['product_name'] or product.display_name)
+                continue
+            purchase = dict(purchase, allocations=allocations)
+            ready.append((product, qty, purchase_uom, purchase))
+        if not ready:
+            detail = ', '.join(plan['skipped'] + rounded_out) or '-'
+            raise UserError(_(
+                'Ningún producto pendiente se puede comprar. Omitidos: %s',
                 detail,
             ))
 
         company = self.env.company
+        order_model = self.env['purchase.order']
         vals = {
             'partner_id': self.partner_id.id,
             'company_id': company.id,
@@ -237,7 +403,7 @@ class KaiSaleCategoryDeliveryWizard(models.TransientModel):
         line_model = self.env['purchase.order.line']
         planned = commitment_utc_window(self.delivery_date, self._tz_name())[0]
         line_vals = []
-        for product, qty, purchase_uom in commands_ready:
+        for product, qty, purchase_uom, _purchase in ready:
             prepared = line_model._prepare_purchase_order_line(
                 product, qty, purchase_uom, order.company_id, order.partner_id, order,
             )
@@ -245,16 +411,54 @@ class KaiSaleCategoryDeliveryWizard(models.TransientModel):
             prepared['product_uom_id'] = purchase_uom.id
             prepared['date_planned'] = planned
             line_vals.append(prepared)
-        lines = line_model.create(line_vals)
+        purchase_lines = line_model.create(line_vals)
         # Keep the sale delivery day if a later compute rewrote the schedule.
-        lines.write({'date_planned': planned})
+        # No coverage rows exist yet, so this write does not change links.
+        purchase_lines.write({'date_planned': planned})
 
+        allocation_vals = []
+        sale_order_ids = set()
+        for purchase_line, (_product, _qty, _uom, purchase) in zip(purchase_lines, ready):
+            for allocation in purchase['allocations']:
+                if float_is_zero(
+                    allocation['quantity'],
+                    precision_rounding=purchase['rounding'],
+                ):
+                    continue
+                sale_order_ids.add(allocation['sale_order_id'])
+                allocation_vals.append({
+                    'company_id': company.id,
+                    'sale_line_id': allocation['sale_line_id'],
+                    'purchase_line_id': purchase_line.id,
+                    'purchase_order_id': order.id,
+                    'product_id': purchase['product_id'],
+                    'product_uom_id': purchase_line.product_id.uom_id.id,
+                    'quantity': allocation['quantity'],
+                })
+        if not allocation_vals:
+            raise UserError(_(
+                'No se pudo registrar la trazabilidad de la compra. '
+                'No se creó la orden.'
+            ))
+        self.env['kai.sale.po.allocation'].create(allocation_vals)
+
+        notes = []
+        skipped = plan['skipped'] + rounded_out
         if skipped:
-            order.message_post(
-                body=_(
-                    'No se incluyeron productos que no se compran: %s',
-                    ', '.join(skipped),
-                ),
-                subtype_xmlid='mail.mt_note',
-            )
+            notes.append(_(
+                'No se incluyeron productos que no se compran: %s',
+                ', '.join(skipped),
+            ))
+        order_names = ', '.join(
+            self.env['sale.order'].browse(sorted(sale_order_ids)).mapped('name')
+        )
+        notes.append(_(
+            'Cubre cantidades pendientes de: %s. El detalle está en Ventas origen. '
+            'Este borrador ya cuenta como comprometido.',
+            order_names,
+        ))
+        order.message_post(
+            body='<br/>'.join(html.escape(note) for note in notes),
+            subtype_xmlid='mail.mt_note',
+        )
         return order
