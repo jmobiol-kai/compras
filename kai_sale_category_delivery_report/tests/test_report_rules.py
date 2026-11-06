@@ -46,13 +46,67 @@ class TestReportRules(unittest.TestCase):
         self.assertEqual(rules.resolve_tz_name(None, None), rules.FALLBACK_TZ)
 
     def test_default_states_are_sale_and_done(self):
+        self.assertEqual(rules.sale_states(), ('sale', 'done'))
         self.assertEqual(rules.sale_states(False), ('sale', 'done'))
 
-    def test_quotes_add_draft_and_sent(self):
-        self.assertEqual(
-            rules.sale_states(True),
-            ('sale', 'done', 'draft', 'sent'),
+    def test_quotes_are_never_included(self):
+        # A stored wizard flag must not widen the domain.
+        confirmed = rules.sale_states(False)
+        for include_quotes in (True, 1, 'draft'):
+            self.assertEqual(rules.sale_states(include_quotes), confirmed)
+        for state in rules.QUOTE_STATES + ('cancel',):
+            self.assertNotIn(state, rules.sale_states(True))
+
+    def test_wizard_has_no_include_quotes_flag(self):
+        root = Path(__file__).resolve().parents[1]
+        view = (root / 'views' / 'sale_category_delivery_wizard_views.xml').read_text()
+        wizard = (root / 'wizard' / 'sale_category_delivery_wizard.py').read_text()
+        self.assertNotIn('include_draft', view)
+        self.assertNotIn('Incluir presupuestos', view)
+        self.assertIn('name="categ_ids"', view)
+        self.assertIn('name="delivery_date"', view)
+        self.assertIn('name="partner_id"', view)
+        self.assertNotIn('include_draft', wizard)
+        self.assertIn('sale_states()', wizard)
+
+    def test_purchase_form_is_editable_after_report_context_merge(self):
+        # The report list is read-only. Odoo 19 copies that context onto the
+        # purchase form unless the returned action overrides edit/create/delete.
+        report_context = {
+            'wizard_id': 9,
+            'create': False,
+            'edit': False,
+            'delete': False,
+            'allowed_company_ids': [3],
+            'default_partner_id': 4,
+            'search_default_purchase_ok': 1,
+            'group_by': 'categ_id',
+        }
+        merged = rules.merged_button_action_context(
+            report_context,
+            rules.purchase_order_action_context(),
         )
+        self.assertTrue(merged['edit'])
+        self.assertTrue(merged['create'])
+        self.assertTrue(merged['delete'])
+        # Company scope stays the user's. Nothing here widens it.
+        self.assertEqual(merged['allowed_company_ids'], [3])
+        self.assertNotIn('default_partner_id', merged)
+        self.assertNotIn('search_default_purchase_ok', merged)
+        self.assertNotIn('group_by', merged)
+        self.assertEqual(merged['wizard_id'], 9)
+
+    def test_purchase_action_uses_editable_context_and_keeps_list_locked(self):
+        wizard = (
+            Path(__file__).resolve().parents[1]
+            / 'wizard'
+            / 'sale_category_delivery_wizard.py'
+        ).read_text()
+        self.assertIn("'edit': False", wizard)
+        self.assertIn('purchase_order_action_context()', wizard)
+        self.assertNotIn("sudo", wizard)
+        # The generated order is a draft: state is not forced to purchase.
+        self.assertNotIn("'state'", wizard)
 
 
 if __name__ == '__main__':

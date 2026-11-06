@@ -15,10 +15,12 @@ si no tiene en la de la compañía, y si no tiene en
 America/Argentina/Buenos_Aires. La cantidad es la suma, expresada en la
 unidad del producto.
 
-Estados por defecto: sale y done. Odoo 19 guarda los pedidos bloqueados en
-sale (no hay estado done en el selection estándar); done queda en el filtro
-para no perder filas históricas. «Incluir presupuestos» suma draft y sent.
-No entran secciones, subsecciones ni notas (display_type).
+Solo pedidos confirmados: sale y done. Odoo 19 guarda los pedidos bloqueados
+en sale (no hay estado done en el selection estándar); done queda en el
+filtro para no perder filas históricas. Los presupuestos draft y sent no
+entran nunca, tampoco cancel, aunque un asistente anterior hubiera guardado
+«Incluir presupuestos». No entran secciones, subsecciones ni notas
+(display_type).
 
 El asistente pide el proveedor antes de mostrar el listado (no se inventa
 ni se filtra por supplier_rank: en esta base los proveedores están en
@@ -26,8 +28,12 @@ product.supplierinfo). «Generar orden de compra» crea de inmediato una sola
 OC en borrador, con una línea por producto comprable (purchase_ok). La
 cantidad es la del informe, en la unidad del proveedor o en la del producto.
 El tipo de recepción sale del default de la compañía (purchase_stock).
+El formulario que se abre es el de compras estándar y queda editable en
+borrador (referencia de proveedor y diario de compras de la compañía). El
+listado del informe sigue sin edición. No se tocan los readonly de una OC
+confirmada o bloqueada, ni las reglas multi-compañía.
 """,
-    'version': '19.0.1.0.1',
+    'version': '19.0.1.0.2',
     'category': 'Sales',
     'author': 'Kaizendo',
     'license': 'LGPL-3',

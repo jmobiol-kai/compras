@@ -4,6 +4,7 @@ from odoo.tools.float_utils import float_compare, float_is_zero, float_round
 
 from .report_rules import (
     commitment_utc_window,
+    purchase_order_action_context,
     resolve_tz_name,
     sale_states,
 )
@@ -22,12 +23,6 @@ class KaiSaleCategoryDeliveryWizard(models.TransientModel):
         string='Fecha de entrega',
         required=True,
         help='Día calendario de la fecha de entrega del pedido (commitment_date).',
-    )
-    include_draft = fields.Boolean(
-        string='Incluir presupuestos',
-        default=False,
-        help='Por defecto solo pedidos confirmados (sale y done). '
-             'Active esta opción para sumar también cotizaciones en borrador o enviadas.',
     )
     partner_id = fields.Many2one(
         'res.partner',
@@ -51,7 +46,7 @@ class KaiSaleCategoryDeliveryWizard(models.TransientModel):
         return [
             ('order_id.commitment_date', '>=', start),
             ('order_id.commitment_date', '<', end),
-            ('order_id.state', 'in', list(sale_states(self.include_draft))),
+            ('order_id.state', 'in', list(sale_states())),
             ('order_id.company_id', '=', self.env.company.id),
             ('display_type', '=', False),
             ('product_id', '!=', False),
@@ -121,6 +116,9 @@ class KaiSaleCategoryDeliveryWizard(models.TransientModel):
             'search_view_id': [search_view.id, search_view.name],
             'domain': [('wizard_id', '=', self.id)],
             'target': 'current',
+            # edit/create/delete false keep this list read-only. The purchase
+            # action must override them: Odoo 19 forwards this context and a
+            # false ``edit`` opens the existing PO form read-only.
             'context': {
                 'wizard_id': self.id,
                 'create': False,
@@ -154,6 +152,11 @@ class KaiSaleCategoryDeliveryWizard(models.TransientModel):
             'view_mode': 'form',
             'views': [(False, 'form')],
             'target': 'current',
+            # Standard purchase form (no custom view). These flags override
+            # the report's edit=false so a draft PO can edit partner_ref and
+            # the company purchase journal. Confirmed-state readonly and
+            # multi-company rules stay on the purchase form.
+            'context': purchase_order_action_context(),
         }
 
     def _purchase_qty_uom(self, product, qty_in_product_uom):

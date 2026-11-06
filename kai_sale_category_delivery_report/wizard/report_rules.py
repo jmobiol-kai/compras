@@ -10,7 +10,8 @@ FALLBACK_TZ = 'America/Argentina/Buenos_Aires'
 
 # Odoo 19's selection is draft / sent / sale / cancel, and a locked order stays
 # ``sale``. ``done`` stays in the domain so a database that still has that value
-# (historical rows, or a customization) is not dropped.
+# (historical rows, or a customization) is not dropped. Quotations and
+# cancellations are never included.
 CONFIRMED_STATES = ('sale', 'done')
 QUOTE_STATES = ('draft', 'sent')
 
@@ -43,8 +44,68 @@ def commitment_utc_window(day, tz_name):
     return start_utc, end_utc
 
 
-def sale_states(include_quotes):
-    """Confirmed orders, plus draft and sent when the user asks for quotes."""
-    if include_quotes:
-        return CONFIRMED_STATES + QUOTE_STATES
+def sale_states(include_quotes=False):
+    """Confirmed orders only (``sale`` and ``done``).
+
+    Draft and sent quotations are never included. ``include_quotes`` is
+    accepted so an older caller still works, and it does not change the
+    result: a stored wizard flag cannot put presupuestos into the domain.
+    """
     return CONFIRMED_STATES
+
+
+# Odoo 19 web client, action_service.js ``doActionButton``: context keys that
+# are NOT copied from the current action onto the action a button returns.
+_CONTEXT_NOT_FORWARDED = (
+    'active_id',
+    'active_ids',
+    'group_by',
+    'orderedBy',
+)
+
+
+def _context_key_is_forwarded(key):
+    if key in _CONTEXT_NOT_FORWARDED or key.endswith('_view_ref'):
+        return False
+    return not (
+        key.startswith('default_')
+        or key.startswith('search_default_')
+        or key.startswith('show_')
+    )
+
+
+def purchase_order_action_context():
+    """Flags applied last on the generated purchase-order form.
+
+    The report action sets ``create`` / ``edit`` / ``delete`` to false so the
+    product list cannot be edited in place. Odoo 19 copies those keys onto
+    the action returned by «Generar orden de compra». ``formView`` then opens
+    an existing record read-only (``activeActions.edit === false`` and a
+    ``resId``), which blocks ``partner_ref`` and the purchase journal together
+    with the rest of the form. Forcing the three flags true restores the
+    standard purchase form. It does not change field ``readonly`` on confirmed
+    or locked orders, and it does not touch ``allowed_company_ids``.
+    """
+    return {
+        'create': True,
+        'edit': True,
+        'delete': True,
+    }
+
+
+def merged_button_action_context(parent_context, action_context):
+    """Context Odoo 19 builds for an object-button action.
+
+    Mirrors ``doActionButton``: forward the current action context except
+    ``default_*``, ``search_default_*``, ``show_*``, ``*_view_ref``,
+    ``group_by``, ``active_id`` and ``active_ids``, then let the action
+    context override. Used so the edit-flag fix can be checked without the
+    web client.
+    """
+    merged = {
+        key: value
+        for key, value in (parent_context or {}).items()
+        if _context_key_is_forwarded(key)
+    }
+    merged.update(action_context or {})
+    return merged
