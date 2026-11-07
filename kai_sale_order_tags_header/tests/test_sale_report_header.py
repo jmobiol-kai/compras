@@ -1,4 +1,6 @@
-from lxml import html
+from unittest.mock import patch
+
+from lxml import etree, html
 
 from odoo.tests import TransactionCase, tagged
 
@@ -337,8 +339,174 @@ class TestSaleReportHeader(TransactionCase):
         self.assertIn('Proveedor Ficticio Norte', _text(bill_article))
         self.assertIn('Gasto ficticio proveedor', _text(bill_article))
 
-        if self.env.ref('l10n_ar.report_invoice_document', raise_if_not_found=False):
-            ar_view = self.env.ref('kai_sale_order_tags_header.l10n_ar_report_invoice_repeat_header')
-            self.assertEqual(ar_view.inherit_id, self.env.ref('l10n_ar.report_invoice_document'))
-            self.assertNotIn('qrcode', ar_view.arch)
-            self.assertIn('is_sale_document', ar_view.arch)
+    def _assert_argentine_customer_block(self):
+        if not self.env.ref('l10n_ar.report_invoice_document', raise_if_not_found=False):
+            return
+        glue = self.env.ref(
+            'kai_sale_order_tags_header_l10n_ar.l10n_ar_custom_header_repeat',
+            raise_if_not_found=False,
+        )
+        self.assertTrue(glue)
+        self.assertNotIn('qrcode', glue.arch)
+        self.assertNotIn('id="informations"', glue.arch)
+        document = etree.tostring(
+            self.env.ref('l10n_ar.report_invoice_document')._get_combined_arch(),
+            encoding='unicode',
+        )
+        self.assertEqual(document.count('t-set="kai_sale_informations"'), 1)
+        self.assertIn('id="informations"', document)
+        self.assertLess(
+            document.find('t-set="kai_sale_informations"'),
+            document.find('id="informations"'),
+        )
+        header = etree.tostring(
+            self.env.ref('l10n_ar.custom_header')._get_combined_arch(),
+            encoding='unicode',
+        )
+        self.assertIn('name="kai_sale_repeat"', header)
+        self.assertIn('kai_sale_informations', header)
+        self.assertIn('document_letter', header)
+        self.assertIn('l10n_ar_formatted_vat', header)
+        self.assertIn('report_number', header)
+
+        # Same insertion point l10n_ar_ux uses for the PO number. It must stay
+        # inside the single captured block, not create a second t-set.
+        self.env['ir.ui.view'].create({
+            'name': 'ux-like po number',
+            'type': 'qweb',
+            'mode': 'extension',
+            'inherit_id': self.env.ref('l10n_ar.report_invoice_document').id,
+            'priority': 16,
+            'arch': '''
+                <data>
+                    <xpath expr="//t[@t-if='o.ref']" position="after">
+                        <t t-if="o.ref"><span id="kai_ux_like_ref">UX-REF</span></t>
+                    </xpath>
+                </data>
+            ''',
+        })
+        extended = etree.tostring(
+            self.env.ref('l10n_ar.report_invoice_document')._get_combined_arch(),
+            encoding='unicode',
+        )
+        self.assertEqual(extended.count('t-set="kai_sale_informations"'), 1)
+        self.assertIn('kai_ux_like_ref', extended)
+        self.assertLess(
+            extended.find('t-set="kai_sale_informations"'),
+            extended.find('kai_ux_like_ref'),
+        )
+
+    def test_argentine_invoice_keeps_customer_and_legal_header(self):
+        if not self.env.ref('l10n_ar.report_invoice_document', raise_if_not_found=False):
+            self.skipTest('l10n_ar is not installed')
+        self._assert_argentine_customer_block()
+        partner = self.env['res.partner'].create({
+            'name': 'Cliente Ficticio Sur',
+            'street': 'Calle Inventada 8',
+            'city': 'Ciudad Demo',
+            'vat': '20123456786',
+        })
+        invoice = self.env['account.move'].create({
+            'move_type': 'out_invoice',
+            'partner_id': partner.id,
+            'invoice_date': '2026-05-05',
+            'invoice_date_due': '2026-06-05',
+            'invoice_origin': 'S-FICT-1',
+            'ref': 'REF-FICT-AR',
+            'invoice_line_ids': [(0, 0, {
+                'name': 'Producto ficticio AR',
+                'quantity': 1,
+                'price_unit': 12,
+            })],
+        })
+        journal = invoice.journal_id
+        if 'l10n_ar_afip_pos_partner_id' in journal._fields and not journal.l10n_ar_afip_pos_partner_id:
+            journal.l10n_ar_afip_pos_partner_id = invoice.company_id.partner_id
+        for pre_printed in (False, True):
+            if 'l10n_ar_afip_pos_system' in journal._fields:
+                journal.l10n_ar_afip_pos_system = 'II_IM' if pre_printed else False
+            html_tree = self._render_ar_document(invoice)
+            header = html_tree.xpath(
+                "//div[contains(concat(' ', normalize-space(@class), ' '), ' header ')]"
+            )[0]
+            article = html_tree.xpath(
+                "//div[contains(concat(' ', normalize-space(@class), ' '), ' article ')]"
+            )[0]
+            repeat = header.xpath(".//*[@name='kai_sale_repeat']")[0]
+            repeat_text = _text(repeat)
+            self.assertIn('Cliente Ficticio Sur', repeat_text)
+            self.assertIn('Calle Inventada 8', repeat_text)
+            self.assertIn('VAT Cond', repeat_text)
+            self.assertIn('Due Date', repeat_text)
+            self.assertIn('S-FICT-1', repeat_text)
+            self.assertIn('REF-FICT-AR', repeat_text)
+            self.assertNotIn('Calle Inventada 8', _text(article))
+            self.assertIn('Producto ficticio AR', _text(article))
+            self.assertNotIn('qrcode', etree.tostring(repeat, encoding='unicode'))
+            header_text = _text(header)
+            # II_IM is the pre-printed form: l10n_ar already hides letter,
+            # number and CUIT and keeps the date. That markup stays.
+            if pre_printed:
+                self.assertNotIn('Nro:', header_text)
+                self.assertNotIn('CUIT', header_text)
+            else:
+                self.assertIn('Nro:', header_text)
+                self.assertIn('CUIT', header_text)
+
+    def _render_ar_document(self, invoice):
+        def argentine_report(move):
+            return 'l10n_ar.report_invoice_document'
+
+        def use_documents(company):
+            return True
+
+        with patch.object(type(invoice), '_get_name_invoice_report', argentine_report), \
+             patch.object(type(invoice.company_id), '_localization_use_documents', use_documents):
+            content, report_type = self.env['ir.actions.report']._render_qweb_html(
+                'account.report_invoice_with_payments',
+                invoice.ids,
+                data={'report_type': 'pdf'},
+            )
+        self.assertEqual(report_type, 'html')
+        if isinstance(content, bytes):
+            content = content.decode()
+        return html.fromstring(content)
+
+    def test_manifest_name_reaches_every_installed_language(self):
+        module = self.env['ir.module.module'].search([
+            ('name', '=', 'kai_sale_order_tags_header'),
+        ])
+        spanish = self.env['res.lang'].with_context(active_test=False).search([
+            ('code', '=', 'es_AR'),
+        ], limit=1)
+        if spanish and not spanish.active:
+            spanish.active = True
+        module.with_context(lang='en_US').write({
+            'shortdesc': 'Sale Order: tags in header',
+        })
+        langs = [code for code, _name in self.env['res.lang'].get_installed()]
+        for lang in langs:
+            if lang == 'en_US':
+                continue
+            module.with_context(lang=lang).write({
+                'shortdesc': 'Sale Order: tags in header',
+            })
+        module._kai_sync_manifest_metadata()
+        expected = 'Encabezados PDF de ventas, compras y facturas'
+        for lang in langs:
+            self.assertEqual(module.with_context(lang=lang).shortdesc, expected)
+        other = self.env['ir.module.module'].search([
+            ('name', '=', 'sale'),
+        ])
+        sale_name = other.with_context(lang='en_US').shortdesc
+        module._kai_sync_manifest_metadata()
+        self.assertEqual(other.with_context(lang='en_US').shortdesc, sale_name)
+
+    def test_registry_hook_does_not_rewrite_views(self):
+        views = self.env['ir.ui.view'].search([
+            ('key', 'like', 'kai_sale_order_tags_header%'),
+        ])
+        before = {view.id: view.write_date for view in views}
+        self.env['ir.actions.report']._register_hook()
+        for view in views:
+            self.assertEqual(view.write_date, before[view.id])

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- The customer block is already captured by
+         kai_sale_order_tags_header.report_invoice_document_repeat_header,
+         which runs before this primary template replaces the div. Printing
+         it here keeps letter, number, CUIT and the pre-printed blanks
+         exactly as l10n_ar and l10n_ar_ux drew them. Priority 99 so a PO
+         number added inside the block by l10n_ar_ux is included. -->
+    <template id="l10n_ar_custom_header_repeat" inherit_id="l10n_ar.custom_header" priority="99">
+        <xpath expr="//div[hasclass('mb-3')]" position="after">
+            <div t-if="kai_sale_header" name="kai_sale_repeat" style="font-size: 11px; line-height: 1.2; margin-top: 1mm; padding-bottom: 1mm; border-bottom: 0.3mm solid #212529;">
+                <t t-out="kai_sale_informations"/>
+            </div>
+        </xpath>
+    </template>
+</odoo>

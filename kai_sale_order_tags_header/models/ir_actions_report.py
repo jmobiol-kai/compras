@@ -57,41 +57,6 @@ class IrActionsReport(models.Model):
                 return paperformat
         return super().get_paperformat()
 
-    def _register_hook(self):
-        res = super()._register_hook()
-        self._kai_sync_optional_reports()
-        return res
-
-    def _kai_sync_optional_reports(self):
-        """Bind reports that are not hard dependencies, and load the AR view.
-
-        sale_pdf_quote_builder and l10n_ar may be absent. Nothing here creates
-        those modules or touches stored invoice PDFs.
-        """
-        if self.env.context.get('kai_syncing_reports'):
-            return
-        self = self.with_context(kai_syncing_reports=True)
-        paperformat = self.env.ref(
-            'kai_sale_order_tags_header.paperformat_saleorder',
-            raise_if_not_found=False,
-        )
-        raw = self.env.ref(
-            'sale_pdf_quote_builder.action_report_saleorder_raw',
-            raise_if_not_found=False,
-        )
-        if paperformat and raw and raw.paperformat_id != paperformat:
-            raw.paperformat_id = paperformat
-        if self.env.ref('l10n_ar.report_invoice_document', raise_if_not_found=False):
-            from odoo.tools.convert import convert_file
-            convert_file(
-                self.env,
-                'kai_sale_order_tags_header',
-                'report/l10n_ar_invoice_templates.xml',
-                None,
-                mode='update',
-                noupdate=False,
-            )
-
     def _render_qweb_pdf_prepare_streams(self, report_ref, data, res_ids=None):
         """One wkhtmltopdf run per sale order.
 

@@ -1,9 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Generic invoice (companies that do not use the Argentine document).
-         Customer invoices and credit notes repeat the partner and the
+    <!-- Customer invoices and credit notes repeat the partner and the
          information row. Vendor bills print that row in the body, as before.
-         Priority 32: after debit-note titles and other extensions of this view. -->
+         Priority 32: after debit-note titles and other extensions of this view.
+
+         Extensions of this view are applied before l10n_ar's primary copy.
+         That primary replaces this same div, so the Argentine fields land
+         inside this one t-set. Do not wrap it a second time: the outer set
+         would overwrite the rendered customer block with an empty string.
+         The optional adapter prints the variable under the legal header. -->
     <template id="report_invoice_document_repeat_header" inherit_id="account.report_invoice_document" priority="32">
         <xpath expr="//t[@t-call='web.external_layout']/*[1]" position="before">
             <t t-set="kai_sale_header" t-value="o.is_sale_document(include_receipts=True)"/>

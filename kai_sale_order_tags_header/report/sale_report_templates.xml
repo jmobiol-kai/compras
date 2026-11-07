@@ -78,8 +78,9 @@
     <!--
         Standard layout only (Happ and Blinis). The customer column and the
         order line are inside div.header, which wkhtmltopdf repeats on every
-        page, including a last page that only has totals. Invoices do not set
-        kai_sale_header, so this adds nothing to them.
+        page, including a last page that only has totals. Argentine invoices
+        set a custom header, and the localization hides this block in that
+        case; their adapter prints the customer data under the legal header.
     -->
     <template id="external_layout_standard_sale_header" inherit_id="web.external_layout_standard">
         <xpath expr="//div[@name='company_address']" position="after">
