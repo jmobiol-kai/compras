@@ -3,6 +3,7 @@ from unittest.mock import patch
 from lxml import etree, html
 
 from odoo.tests import TransactionCase, tagged
+from odoo.tools.misc import format_date
 
 
 def _text(node):
@@ -400,12 +401,20 @@ class TestSaleReportHeader(TransactionCase):
         if not self.env.ref('l10n_ar.report_invoice_document', raise_if_not_found=False):
             self.skipTest('l10n_ar is not installed')
         self._assert_argentine_customer_block()
-        partner = self.env['res.partner'].create({
+        # The report prints the partner's ARCA responsibility. A VAT number
+        # alone does not fill it; real customers have the type set.
+        responsibility = self.env.ref('l10n_ar.res_CF')
+        partner_vals = {
             'name': 'Cliente Ficticio Sur',
             'street': 'Calle Inventada 8',
             'city': 'Ciudad Demo',
             'vat': '20123456786',
-        })
+            'l10n_ar_afip_responsibility_type_id': responsibility.id,
+        }
+        identification = self.env.ref('l10n_ar.it_cuit', raise_if_not_found=False)
+        if identification:
+            partner_vals['l10n_latam_identification_type_id'] = identification.id
+        partner = self.env['res.partner'].create(partner_vals)
         invoice = self.env['account.move'].create({
             'move_type': 'out_invoice',
             'partner_id': partner.id,
@@ -436,22 +445,24 @@ class TestSaleReportHeader(TransactionCase):
             repeat_text = _text(repeat)
             self.assertIn('Cliente Ficticio Sur', repeat_text)
             self.assertIn('Calle Inventada 8', repeat_text)
-            self.assertIn('VAT Cond', repeat_text)
-            self.assertIn('Due Date', repeat_text)
+            self.assertIn(responsibility.name, repeat_text)
+            self.assertIn(format_date(self.env, invoice.invoice_date_due), repeat_text)
             self.assertIn('S-FICT-1', repeat_text)
             self.assertIn('REF-FICT-AR', repeat_text)
+            if partner.l10n_ar_formatted_vat:
+                self.assertIn(partner.l10n_ar_formatted_vat, repeat_text)
             self.assertNotIn('Calle Inventada 8', _text(article))
             self.assertIn('Producto ficticio AR', _text(article))
             self.assertNotIn('qrcode', etree.tostring(repeat, encoding='unicode'))
             header_text = _text(header)
-            # II_IM is the pre-printed form: l10n_ar already hides letter,
-            # number and CUIT and keeps the date. That markup stays.
+            # II_IM is the pre-printed form: l10n_ar hides the company block
+            # (logo, letter, number, CUIT) and keeps the date. The labels are
+            # translated, so the company name is the stable signal.
+            company_name = invoice.company_id.partner_id.name
             if pre_printed:
-                self.assertNotIn('Nro:', header_text)
-                self.assertNotIn('CUIT', header_text)
+                self.assertNotIn(company_name, header_text)
             else:
-                self.assertIn('Nro:', header_text)
-                self.assertIn('CUIT', header_text)
+                self.assertIn(company_name, header_text)
 
     def _render_ar_document(self, invoice):
         def argentine_report(move):
