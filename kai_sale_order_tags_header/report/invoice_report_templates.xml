@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Generic invoice (companies that do not use the Argentine document).
+         Customer invoices and credit notes repeat the partner and the
+         information row. Vendor bills print that row in the body, as before.
+         Priority 32: after debit-note titles and other extensions of this view. -->
+    <template id="report_invoice_document_repeat_header" inherit_id="account.report_invoice_document" priority="32">
+        <xpath expr="//t[@t-call='web.external_layout']/*[1]" position="before">
+            <t t-set="kai_sale_header" t-value="o.is_sale_document(include_receipts=True)"/>
+        </xpath>
+        <xpath expr="//div[@id='informations']" position="after">
+            <t t-set="kai_sale_informations">
+                <div id="kai_invoice_informations_anchor"/>
+            </t>
+            <t t-if="not kai_sale_header">
+                <t t-out="kai_sale_informations"/>
+            </t>
+        </xpath>
+        <xpath expr="//div[@id='kai_invoice_informations_anchor']" position="replace">
+            <xpath expr="//div[@id='informations']" position="move"/>
+        </xpath>
+    </template>
+</odoo>

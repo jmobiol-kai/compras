@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Confirmed PO and draft PO printed with this template. Priority 32
+         so purchase_stock can add the incoterm inside informations first. -->
+    <template id="report_purchaseorder_document_repeat_header" inherit_id="purchase.report_purchaseorder_document" priority="32">
+        <xpath expr="//t[@t-call='web.external_layout']/*[1]" position="before">
+            <t t-set="kai_sale_header" t-value="True"/>
+        </xpath>
+        <xpath expr="//div[@id='informations']" position="after">
+            <t t-set="kai_sale_informations">
+                <div id="kai_purchase_informations_anchor"/>
+            </t>
+        </xpath>
+        <xpath expr="//div[@id='kai_purchase_informations_anchor']" position="replace">
+            <xpath expr="//div[@id='informations']" position="move"/>
+        </xpath>
+    </template>
+
+    <!-- RFQ. There is no informations block in the base template; purchase_stock
+         may add one later and it stays in the body. Supplier, title and the
+         shipping block repeat from the shared header. -->
+    <template id="report_purchasequotation_document_repeat_header" inherit_id="purchase.report_purchasequotation_document">
+        <xpath expr="//t[@t-call='web.external_layout']/*[1]" position="before">
+            <t t-set="kai_sale_header" t-value="True"/>
+        </xpath>
+    </template>
+</odoo>

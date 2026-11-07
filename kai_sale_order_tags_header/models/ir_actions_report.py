@@ -14,13 +14,25 @@ from odoo.tools.pdf import PdfFileReader
 
 _logger = logging.getLogger(__name__)
 
-# Quotation, customer preview / raw quote and proforma. Invoices keep the
-# company paper format (base.paperformat_euro in these databases).
+# Quotation, raw quote (no hard dependency on sale_pdf_quote_builder) and proforma.
 SALE_REPORT_NAMES = (
     'sale.report_saleorder',
     'sale.report_saleorder_raw',
     'sale.report_saleorder_pro_forma',
 )
+# RFQ and confirmed purchase order. Vendor bills are not in this list.
+PURCHASE_REPORT_NAMES = (
+    'purchase.report_purchaseorder',
+    'purchase.report_purchasequotation',
+)
+# Customer invoices and credit notes share these actions with vendor bills.
+# The paper format stays the company one; only a rendered customer header
+# replaces the top margin.
+INVOICE_REPORT_NAMES = (
+    'account.report_invoice',
+    'account.report_invoice_with_payments',
+)
+_KAI_SPLIT_REPORTS = SALE_REPORT_NAMES + PURCHASE_REPORT_NAMES + INVOICE_REPORT_NAMES
 
 # Painted header bottom + this gap is where the table starts.
 # PIN_MM keeps wkhtmltopdf from sliding that block down into the table:
@@ -34,7 +46,9 @@ class IrActionsReport(models.Model):
     _inherit = 'ir.actions.report'
 
     def get_paperformat(self):
-        if len(self) == 1 and self.report_name in SALE_REPORT_NAMES:
+        # Invoices are not listed: the same actions also print vendor bills,
+        # which must keep the company paper format.
+        if len(self) == 1 and self.report_name in SALE_REPORT_NAMES + PURCHASE_REPORT_NAMES:
             paperformat = self.env.ref(
                 'kai_sale_order_tags_header.paperformat_saleorder',
                 raise_if_not_found=False,
@@ -42,6 +56,41 @@ class IrActionsReport(models.Model):
             if paperformat:
                 return paperformat
         return super().get_paperformat()
+
+    def _register_hook(self):
+        res = super()._register_hook()
+        self._kai_sync_optional_reports()
+        return res
+
+    def _kai_sync_optional_reports(self):
+        """Bind reports that are not hard dependencies, and load the AR view.
+
+        sale_pdf_quote_builder and l10n_ar may be absent. Nothing here creates
+        those modules or touches stored invoice PDFs.
+        """
+        if self.env.context.get('kai_syncing_reports'):
+            return
+        self = self.with_context(kai_syncing_reports=True)
+        paperformat = self.env.ref(
+            'kai_sale_order_tags_header.paperformat_saleorder',
+            raise_if_not_found=False,
+        )
+        raw = self.env.ref(
+            'sale_pdf_quote_builder.action_report_saleorder_raw',
+            raise_if_not_found=False,
+        )
+        if paperformat and raw and raw.paperformat_id != paperformat:
+            raw.paperformat_id = paperformat
+        if self.env.ref('l10n_ar.report_invoice_document', raise_if_not_found=False):
+            from odoo.tools.convert import convert_file
+            convert_file(
+                self.env,
+                'kai_sale_order_tags_header',
+                'report/l10n_ar_invoice_templates.xml',
+                None,
+                mode='update',
+                noupdate=False,
+            )
 
     def _render_qweb_pdf_prepare_streams(self, report_ref, data, res_ids=None):
         """One wkhtmltopdf run per sale order.
@@ -54,7 +103,7 @@ class IrActionsReport(models.Model):
         report = self._get_report(report_ref) if report_ref else self.browse()
         if (
             report
-            and report.report_name in SALE_REPORT_NAMES
+            and report.report_name in _KAI_SPLIT_REPORTS
             and len(res_ids) > 1
             and len(set(res_ids)) == len(res_ids)
         ):
@@ -78,7 +127,7 @@ class IrActionsReport(models.Model):
     ):
         if header and report_ref and _wkhtml().is_patched_qt:
             report = self._get_report(report_ref)
-            if report.report_name in SALE_REPORT_NAMES:
+            if report.report_name in _KAI_SPLIT_REPORTS:
                 measured = self._kai_measured_paper_args(header, report.get_paperformat())
                 if measured:
                     specific_paperformat_args = dict(specific_paperformat_args or {})
@@ -104,12 +153,12 @@ class IrActionsReport(models.Model):
         if isinstance(header_html, bytes):
             header_html = header_html.decode()
         try:
-            single = self._kai_header_is_single(header_html)
+            measure_html = self._kai_header_measure_html(header_html)
         except (ValueError, etree.ParserError, etree.XMLSyntaxError):
             return None
-        if not single:
+        if not measure_html:
             return None
-        height = self._kai_header_height_mm(header_html, paperformat)
+        height = self._kai_header_height_mm(measure_html, paperformat)
         if not height or height < 8 or height > 150:
             return None
         margin_top = height + _GAP_MM
@@ -118,12 +167,28 @@ class IrActionsReport(models.Model):
             'data-report-header-spacing': f'{max(margin_top - _PIN_MM, 0):.2f}',
         }
 
-    def _kai_header_is_single(self, header_html):
+    def _kai_header_measure_html(self, header_html):
+        """Original header document when it contains one repeating block.
+
+        The HTML is returned unchanged. Re-serializing it collapses the title
+        width and the measured height comes out too large. Vendor bills do
+        not carry ``kai_sale_repeat``, so this returns nothing and the
+        company paper format is left alone. Argentina original/duplicate in
+        one file is more than one header; that case also keeps the company
+        format, which does not cover the lines.
+        """
         root = lxml.html.fromstring(header_html)
-        headers = root.xpath(
-            "//div[contains(concat(' ', normalize-space(@class), ' '), ' header ')]"
+        nodes = root.xpath(
+            "//div[contains(concat(' ', normalize-space(@class), ' '), ' header ')"
+            " and .//*[@name='kai_sale_repeat']]"
         )
-        return len(headers) == 1
+        # One header: measure the original document. Re-serializing it with
+        # lxml collapses the title width and the height comes out too large.
+        # Several headers means Argentina original/duplicate in one file; the
+        # company paper format stays, which does not overlap the lines.
+        if len(nodes) != 1:
+            return None
+        return header_html
 
     def _kai_header_height_mm(self, header_html, paperformat):
         info = _wkhtml()
@@ -154,7 +219,9 @@ class IrActionsReport(models.Model):
                 command, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
                 timeout=60, check=False,
             )
-            if completed.returncode:
+            # Exit 1 is wkhtmltopdf's network warning (about:blank). The PDF
+            # is still usable; Odoo keeps those files too.
+            if completed.returncode not in (0, 1) or os.path.getsize(pdf_path) < 500:
                 _logger.warning('Sale header measurement failed (wkhtmltopdf %s).', completed.returncode)
                 return None
             with open(pdf_path, 'rb') as handle:

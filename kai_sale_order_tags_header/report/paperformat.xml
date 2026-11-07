@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!--
-        Sale quotations, orders and proformas only. Does not replace
-        base.paperformat_euro, so invoices and other apps keep the company
-        format (100mm / 90mm on Happ and Blinis).
+        Fallback for sale and purchase PDFs. Does not replace
+        base.paperformat_euro. Customer invoices keep the company format
+        and only replace the top margin when the repeating header is
+        actually rendered, so vendor bills stay on the global format.
 
         These 80 / 72 millimetres are only the fallback. On patched
         wkhtmltopdf each sale order measures its own header and replaces
@@ -12,7 +13,7 @@
         the block at the top of the page instead of on the lines.
     -->
     <record id="paperformat_saleorder" model="report.paperformat">
-        <field name="name">A4 ventas</field>
+        <field name="name">A4 documentos</field>
         <field name="default" eval="False"/>
         <field name="format">A4</field>
         <field name="page_height">0</field>
@@ -32,6 +33,12 @@
         <field name="paperformat_id" ref="paperformat_saleorder"/>
     </record>
     <record id="sale.action_report_pro_forma_invoice" model="ir.actions.report">
+        <field name="paperformat_id" ref="paperformat_saleorder"/>
+    </record>
+    <record id="purchase.action_report_purchase_order" model="ir.actions.report">
+        <field name="paperformat_id" ref="paperformat_saleorder"/>
+    </record>
+    <record id="purchase.report_purchase_quotation" model="ir.actions.report">
         <field name="paperformat_id" ref="paperformat_saleorder"/>
     </record>
 </odoo>

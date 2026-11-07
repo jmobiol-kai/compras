@@ -97,7 +97,7 @@ class TestSaleReportHeader(TransactionCase):
             '<body style="margin:0"><div class="header" style="font-family:sans-serif">'
             '<div style="height:12mm;width:30mm;background:#222"></div>'
             '<div>Cliente Ficticio Alfa</div>'
-            '<div style="border-bottom:0.4mm solid #222">07/04/2026 19:00</div>'
+            '<div name="kai_sale_repeat" style="border-bottom:0.4mm solid #222">07/04/2026 19:00</div>'
             '</div></body></html>'
         )
         tall = short.replace(
@@ -113,8 +113,12 @@ class TestSaleReportHeader(TransactionCase):
         self.assertLess(short_top, 70)
         self.assertGreater(tall_top, short_top + 8)
         self.assertAlmostEqual(float(short_args['data-report-header-spacing']), short_top - 8, delta=0.05)
-        doubled = short.replace('</body>', '<div class="header"><div>Otro</div></div></body>')
+        doubled = short.replace(
+            '</body>',
+            '<div class="header"><div name="kai_sale_repeat">Copia</div></div></body>',
+        )
         self.assertFalse(report._kai_measured_paper_args(doubled, paperformat))
+        self.assertFalse(report._kai_measured_paper_args(short.replace(' name="kai_sale_repeat"', ''), paperformat))
         invoice = self.env.ref('account.account_invoices')
         invoice_args = invoice._build_wkhtmltopdf_args(invoice.get_paperformat(), False)
         self.assertIn('--margin-top', invoice_args)
@@ -210,3 +214,131 @@ class TestSaleReportHeader(TransactionCase):
         self.assertNotIn('Avenida Inventada 4567', _text(article))
         self.assertNotIn('Deposito Ficticio Norte', _text(article))
         self.assertEqual(_text(article).count('Producto ficticio'), 40)
+
+    def _html_report(self, report_name, records):
+        content, report_type = self.env['ir.actions.report']._render_qweb_html(
+            report_name, records.ids,
+        )
+        self.assertEqual(report_type, 'html')
+        if isinstance(content, bytes):
+            content = content.decode()
+        return html.fromstring(content)
+
+    def test_purchase_and_customer_invoice_repeat_vendor_bill_does_not(self):
+        sale_format = self.env.ref('kai_sale_order_tags_header.paperformat_saleorder')
+        self.assertEqual(
+            self.env.ref('purchase.action_report_purchase_order').get_paperformat(),
+            sale_format,
+        )
+        self.assertEqual(
+            self.env.ref('purchase.report_purchase_quotation').get_paperformat(),
+            sale_format,
+        )
+        self.assertNotEqual(
+            self.env.ref('account.account_invoices').get_paperformat(),
+            sale_format,
+        )
+        self.assertNotEqual(
+            self.env.ref('account.action_account_original_vendor_bill').get_paperformat(),
+            sale_format,
+        )
+        vendor = self.env['res.partner'].create({
+            'name': 'Proveedor Ficticio Norte',
+            'street': 'Calle Proveedor 50',
+            'city': 'Ciudad Demo',
+            'phone': '555-0170',
+            'supplier_rank': 1,
+        })
+        product = self.product
+        product.purchase_ok = True
+        order = self.env['purchase.order'].create({
+            'partner_id': vendor.id,
+            'partner_ref': 'REF-FICT-1',
+            'order_line': [(0, 0, {
+                'product_id': product.id,
+                'name': 'Producto ficticio compra',
+                'product_qty': 2,
+                'price_unit': 15,
+                'date_planned': '2026-04-20',
+            })],
+        })
+        rfq = self._html_report('purchase.report_purchasequotation', order)
+        header = rfq.xpath("//div[contains(concat(' ', normalize-space(@class), ' '), ' header ')]")[0]
+        self.assertIn('Proveedor Ficticio Norte', _text(header))
+        self.assertIn(order.name, _text(header))
+        order.button_confirm()
+        po = self._html_report('purchase.report_purchaseorder', order)
+        po_header = po.xpath("//div[contains(concat(' ', normalize-space(@class), ' '), ' header ')]")[0]
+        po_article = po.xpath("//div[contains(concat(' ', normalize-space(@class), ' '), ' article ')]")[0]
+        self.assertIn('Proveedor Ficticio Norte', _text(po_header))
+        self.assertIn('REF-FICT-1', _text(po_header))
+        self.assertIn(order.name, _text(po_header))
+        self.assertFalse(po_article.xpath(".//*[@id='informations']"))
+        self.assertIn('Producto ficticio compra', _text(po_article))
+
+        out_invoice = self.env['account.move'].create({
+            'move_type': 'out_invoice',
+            'partner_id': self.partner.id,
+            'invoice_date': '2026-04-07',
+            'invoice_line_ids': [(0, 0, {
+                'name': 'Producto ficticio factura',
+                'quantity': 1,
+                'price_unit': 20,
+            })],
+        })
+        customer = self._html_report('account.report_invoice_with_payments', out_invoice)
+        customer_header = customer.xpath(
+            "//div[contains(concat(' ', normalize-space(@class), ' '), ' header ')]"
+        )[0]
+        customer_article = customer.xpath(
+            "//div[contains(concat(' ', normalize-space(@class), ' '), ' article ')]"
+        )[0]
+        self.assertIn('Cliente Ficticio Alfa', _text(customer_header))
+        self.assertIn('Calle Falsa 123', _text(customer_header))
+        self.assertTrue(customer_header.xpath(".//*[@name='kai_sale_repeat']"))
+        self.assertNotIn('Calle Falsa 123', _text(customer_article))
+        self.assertIn('Producto ficticio factura', _text(customer_article))
+
+        credit = self.env['account.move'].create({
+            'move_type': 'out_refund',
+            'partner_id': self.partner.id,
+            'invoice_date': '2026-04-09',
+            'invoice_line_ids': [(0, 0, {
+                'name': 'Nota de credito ficticia',
+                'quantity': 1,
+                'price_unit': 5,
+            })],
+        })
+        credit_html = self._html_report('account.report_invoice', credit)
+        credit_header = credit_html.xpath(
+            "//div[contains(concat(' ', normalize-space(@class), ' '), ' header ')]"
+        )[0]
+        self.assertTrue(credit_header.xpath(".//*[@name='kai_sale_repeat']"))
+        self.assertIn('Cliente Ficticio Alfa', _text(credit_header))
+
+        in_invoice = self.env['account.move'].create({
+            'move_type': 'in_invoice',
+            'partner_id': vendor.id,
+            'invoice_date': '2026-04-08',
+            'invoice_line_ids': [(0, 0, {
+                'name': 'Gasto ficticio proveedor',
+                'quantity': 1,
+                'price_unit': 30,
+            })],
+        })
+        vendor_bill = self._html_report('account.report_invoice_with_payments', in_invoice)
+        bill_header = vendor_bill.xpath(
+            "//div[contains(concat(' ', normalize-space(@class), ' '), ' header ')]"
+        )[0]
+        bill_article = vendor_bill.xpath(
+            "//div[contains(concat(' ', normalize-space(@class), ' '), ' article ')]"
+        )[0]
+        self.assertFalse(bill_header.xpath(".//*[@name='kai_sale_repeat']"))
+        self.assertIn('Proveedor Ficticio Norte', _text(bill_article))
+        self.assertIn('Gasto ficticio proveedor', _text(bill_article))
+
+        if self.env.ref('l10n_ar.report_invoice_document', raise_if_not_found=False):
+            ar_view = self.env.ref('kai_sale_order_tags_header.l10n_ar_report_invoice_repeat_header')
+            self.assertEqual(ar_view.inherit_id, self.env.ref('l10n_ar.report_invoice_document'))
+            self.assertNotIn('qrcode', ar_view.arch)
+            self.assertIn('is_sale_document', ar_view.arch)
