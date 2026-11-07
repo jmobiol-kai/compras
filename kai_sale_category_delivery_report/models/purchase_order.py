@@ -1,4 +1,7 @@
+import re
+
 from odoo import _, api, fields, models
+from odoo.exceptions import UserError
 from odoo.tools.float_utils import float_compare, float_is_zero
 
 from ..wizard.allocation_rules import cap_allocation_quantities
@@ -49,6 +52,125 @@ class PurchaseOrder(models.Model):
                 'views': [(False, 'list'), (False, 'form')],
             })
         return action
+
+    def action_kai_undo_sale_trace(self):
+        """Cancel, drop this report's links and lines, and return to draft.
+
+        The purchase order and its number stay, so the sequence is not
+        consumed. Sale orders are not deleted. A normal cancellation does
+        not call this: it keeps the lines and the links. Only a purchase
+        user, and only while the order still has links from this report,
+        can run it. Confirmed orders, done receipts, vendor bills and
+        payments are refused. The emptied draft can be filled and confirmed
+        again; that does not restore the old links.
+        """
+        self.ensure_one()
+        self._kai_check_undo_access()
+        self._kai_check_undo_allowed()
+        allocation_model = self.env['kai.sale.po.allocation']
+        allocation_model.lock_sale_lines(self.kai_allocation_ids.sale_line_id)
+        self._kai_check_undo_allowed()
+        sale_names = ', '.join(self.kai_allocation_ids.sale_order_id.mapped('name'))
+        partner = self.partner_id
+        partner_ref = self.partner_ref
+        name = self.name
+        if self.state in ('draft', 'sent'):
+            self.button_cancel()
+        self.kai_allocation_ids.unlink()
+        self.order_line.unlink()
+        self.button_draft()
+        if self._kai_origin_is_report_label(self.origin):
+            self.origin = False
+        if self.partner_id != partner or self.partner_ref != partner_ref or self.name != name:
+            raise UserError(_(
+                'No se pudo deshacer sin cambiar el número o el proveedor.'
+            ))
+        self.message_post(
+            body=_(
+                'Se anuló y deshizo la cotización %(name)s. '
+                'Se quitaron los productos y los vínculos con %(sales)s. '
+                'La orden volvió a borrador con el mismo número para reutilizarla. '
+                'Las ventas no se borraron y la demanda quedó libre.',
+                name=name,
+                sales=sale_names or '-',
+            ),
+            subtype_xmlid='mail.mt_note',
+        )
+        return True
+
+    def _kai_check_undo_access(self):
+        if not self.env.user.has_group('purchase.group_purchase_user'):
+            raise UserError(_(
+                'Solo un usuario de compras puede anular y deshacer la cotización.'
+            ))
+        self.check_access('write')
+        self.env['purchase.order.line'].check_access('unlink')
+        self.env['kai.sale.po.allocation'].check_access('unlink')
+
+    def _kai_check_undo_allowed(self):
+        self.ensure_one()
+        if self.state not in ('draft', 'sent', 'cancel'):
+            raise UserError(_(
+                'Solo se puede anular y deshacer una cotización en borrador, '
+                'enviada o cancelada. %(name)s está en estado %(state)s.',
+                name=self.name,
+                state=dict(self._fields['state']._description_selection(self.env)).get(self.state, self.state),
+            ))
+        if self.locked:
+            raise UserError(_(
+                'La orden %(name)s está bloqueada. Desbloquéela antes de deshacerla.',
+                name=self.name,
+            ))
+        if not self.kai_allocation_ids:
+            raise UserError(_(
+                'Esta orden no tiene vínculos de ventas del informe. '
+                'No se deshace una compra ajena ni una que ya fue deshecha.'
+            ))
+        invoices = self.invoice_ids.filtered(lambda move: move.state != 'cancel')
+        if invoices:
+            labels = [move.name or move.display_name or str(move.id) for move in invoices]
+            raise UserError(_(
+                'No se deshace %(name)s porque tiene facturas de proveedor: %(bills)s.',
+                name=self.name,
+                bills=', '.join(labels),
+            ))
+        paid = self.invoice_ids.filtered(
+            lambda move: move.payment_state not in ('not_paid', 'invoicing_legacy', False)
+            and move.state != 'cancel'
+        )
+        if paid:
+            raise UserError(_(
+                'No se deshace %(name)s porque tiene pagos registrados.',
+                name=self.name,
+            ))
+        if 'picking_ids' in self._fields:
+            done_pickings = self.picking_ids.filtered(lambda picking: picking.state == 'done')
+            if done_pickings:
+                raise UserError(_(
+                    'No se deshace %(name)s porque tiene recepciones hechas: %(pickings)s.',
+                    name=self.name,
+                    pickings=', '.join(done_pickings.mapped('name')),
+                ))
+        if 'move_ids' in self.env['purchase.order.line']._fields:
+            done_moves = self.order_line.move_ids.filtered(lambda move: move.state == 'done')
+            if done_moves:
+                raise UserError(_(
+                    'No se deshace %(name)s porque tiene movimientos de stock hechos.',
+                    name=self.name,
+                ))
+
+    @api.model
+    def _kai_origin_is_report_label(self, origin):
+        """True only for the exact delivery label this report writes."""
+        text = (origin or '').strip()
+        match = re.fullmatch(r'(.+) (\d{4}-\d{2}-\d{2})', text)
+        if not match:
+            return False
+        date_text = match.group(2)
+        return text in {
+            _('Entrega %s', date_text),
+            'Entrega %s' % date_text,
+        }
 
 
 class PurchaseOrderLine(models.Model):

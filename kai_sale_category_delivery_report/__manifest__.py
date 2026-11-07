@@ -53,8 +53,16 @@ sobre queda pendiente y se puede comprar; si lo cubierto supera a la venta,
 el informe lo marca excedido y no genera otra compra por esa línea. No se
 puede borrar una línea de venta que siga cubierta. Las compras anteriores
 sin este vínculo no descuentan, aunque el origen diga la fecha de entrega.
+
+«Anular y deshacer» está en la cotización que tiene vínculos del informe,
+en borrador, enviada o cancelada. Cancela si sigue abierta, quita esos
+vínculos y los productos de la compra, y la deja en borrador con el mismo
+número y el mismo proveedor. No borra las ventas ni la orden, y no toca
+la referencia de proveedor. La demanda queda libre. Cancelar con el botón
+normal no borra líneas ni vínculos. Una orden confirmada, con recepción
+hecha, factura o pago, no se deshace.
 """,
-    'version': '19.0.1.0.5',
+    'version': '19.0.1.0.6',
     'category': 'Sales',
     'author': 'Kaizendo',
     'license': 'LGPL-3',

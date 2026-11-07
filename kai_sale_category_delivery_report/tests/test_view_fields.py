@@ -277,7 +277,7 @@ class TestViewFields(unittest.TestCase):
         self.assertIn('model_kai_sale_po_allocation', rules)
         self.assertIn("company_ids", rules)
         manifest = (ROOT / '__manifest__.py').read_text()
-        self.assertIn("'version': '19.0.1.0.5'", manifest)
+        self.assertIn("'version': '19.0.1.0.6'", manifest)
         for name in (
             'security/ir.model.access.csv',
             'security/sale_po_allocation_rules.xml',
