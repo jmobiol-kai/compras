@@ -89,6 +89,37 @@ class TestSaleReportHeader(TransactionCase):
         if raw:
             self.assertEqual(raw.get_paperformat(), sale_format)
 
+    def test_each_header_measures_its_own_margin(self):
+        report = self.env.ref('sale.action_report_saleorder')
+        paperformat = report.get_paperformat()
+        short = (
+            '<!DOCTYPE html><html><head><meta charset="utf-8"></head>'
+            '<body style="margin:0"><div class="header" style="font-family:sans-serif">'
+            '<div style="height:12mm;width:30mm;background:#222"></div>'
+            '<div>Cliente Ficticio Alfa</div>'
+            '<div style="border-bottom:0.4mm solid #222">07/04/2026 19:00</div>'
+            '</div></body></html>'
+        )
+        tall = short.replace(
+            '<div>Cliente Ficticio Alfa</div>',
+            '<div>Cliente Ficticio Largo</div>' + '<div>Linea de direccion ficticia</div>' * 12,
+            1,
+        )
+        short_args = report._kai_measured_paper_args(short, paperformat)
+        tall_args = report._kai_measured_paper_args(tall, paperformat)
+        self.assertTrue(short_args and tall_args)
+        short_top = float(short_args['data-report-margin-top'])
+        tall_top = float(tall_args['data-report-margin-top'])
+        self.assertLess(short_top, 70)
+        self.assertGreater(tall_top, short_top + 8)
+        self.assertAlmostEqual(float(short_args['data-report-header-spacing']), short_top - 8, delta=0.05)
+        doubled = short.replace('</body>', '<div class="header"><div>Otro</div></div></body>')
+        self.assertFalse(report._kai_measured_paper_args(doubled, paperformat))
+        invoice = self.env.ref('account.account_invoices')
+        invoice_args = invoice._build_wkhtmltopdf_args(invoice.get_paperformat(), False)
+        self.assertIn('--margin-top', invoice_args)
+        self.assertEqual(invoice_args[invoice_args.index('--margin-top') + 1], str(invoice.get_paperformat().margin_top))
+
     def test_customer_block_is_in_the_header_once(self):
         root = self._html(self.order)
         header = root.xpath(

@@ -5,16 +5,11 @@
         base.paperformat_euro, so invoices and other apps keep the company
         format (100mm / 90mm on Happ and Blinis).
 
-        With Odoo's header document (html height 0, body height 100%),
-        wkhtmltopdf pins the header to the top of the page when
-        header_spacing stays a few millimetres under margin_top, and starts
-        the body at margin_top. A larger gap between those two values drops
-        the header onto the lines.         80mm fits a long address, the three phone lines, a shipping block and
-        wrapped tags (that block ended near 73mm in a local wkhtmltopdf run)
-        and starts the lines just below it. It is lower than the 100mm top
-        margin that pushed the customer down to ~110mm. A shorter header
-        keeps the logo and the customer together and leaves the unused part
-        of this fixed margin above the table.
+        These 80 / 72 millimetres are only the fallback. On patched
+        wkhtmltopdf each sale order measures its own header and replaces
+        margin_top, so a short order does not keep the blank of a long one.
+        header_spacing stays 8mm under that measured top, which is what keeps
+        the block at the top of the page instead of on the lines.
     -->
     <record id="paperformat_saleorder" model="report.paperformat">
         <field name="name">A4 ventas</field>
