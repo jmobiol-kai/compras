@@ -1,11 +1,14 @@
 import re
 
 from odoo import _, api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
 from odoo.tools.float_utils import float_compare, float_is_zero
 
 from ..wizard.allocation_rules import cap_allocation_quantities
 from ..wizard.report_rules import purchase_order_action_context
+
+CONSUMIDOR_FINAL_NAME = 'Consumidor Final Anónimo'
+CONSUMIDOR_FINAL_XMLID = 'l10n_ar.par_cfa'
 
 
 class PurchaseOrder(models.Model):
@@ -67,11 +70,14 @@ class PurchaseOrder(models.Model):
         self.ensure_one()
         self._kai_check_undo_access()
         self._kai_check_undo_allowed()
+        # Resolve before any cancel, unlink or draft. A missing or ambiguous
+        # contact aborts the whole transaction.
+        consumer = self._kai_consumidor_final_partner()
         allocation_model = self.env['kai.sale.po.allocation']
         allocation_model.lock_sale_lines(self.kai_allocation_ids.sale_line_id)
         self._kai_check_undo_allowed()
+        consumer = self._kai_consumidor_final_partner()
         sale_names = ', '.join(self.kai_allocation_ids.sale_order_id.mapped('name'))
-        partner = self.partner_id
         partner_ref = self.partner_ref
         name = self.name
         if self.state in ('draft', 'sent'):
@@ -81,22 +87,79 @@ class PurchaseOrder(models.Model):
         self.button_draft()
         if self._kai_origin_is_report_label(self.origin):
             self.origin = False
-        if self.partner_id != partner or self.partner_ref != partner_ref or self.name != name:
+        self.partner_id = consumer
+        self.with_company(self.company_id).onchange_partner_id()
+        if self.partner_ref != partner_ref:
+            self.partner_ref = partner_ref
+        if self.partner_id != consumer or self.partner_ref != partner_ref or self.name != name:
             raise UserError(_(
-                'No se pudo deshacer sin cambiar el número o el proveedor.'
+                'No se pudo deshacer sin conservar el número y la referencia de proveedor.'
             ))
         self.message_post(
             body=_(
                 'Se anuló y deshizo la cotización %(name)s. '
                 'Se quitaron los productos y los vínculos con %(sales)s. '
-                'La orden volvió a borrador con el mismo número para reutilizarla. '
+                'La orden volvió a borrador con el mismo número. '
+                'El proveedor pasó a %(partner)s. '
+                'La referencia de proveedor no se modificó. '
                 'Las ventas no se borraron y la demanda quedó libre.',
                 name=name,
                 sales=sale_names or '-',
+                partner=consumer.display_name,
             ),
             subtype_xmlid='mail.mt_note',
         )
         return True
+
+    def _kai_consumidor_final_partner(self):
+        """The one Consumidor Final Anónimo this company may use.
+
+        Prefers the official ``l10n_ar.par_cfa`` record when that module
+        created it, the user can read it, and it belongs to this purchase
+        company or to every company. Otherwise requires exactly one active
+        partner with that exact name in the same scope. Does not create
+        contacts and does not use a partial name match.
+        """
+        self.ensure_one()
+        company = self.company_id
+        official = self._kai_official_consumidor_final(company)
+        if official:
+            return official
+        partners = self.env['res.partner'].search([
+            ('name', '=', CONSUMIDOR_FINAL_NAME),
+            ('active', '=', True),
+            '|', ('company_id', '=', False), ('company_id', '=', company.id),
+        ])
+        if len(partners) == 1:
+            return partners
+        if not partners:
+            raise UserError(_(
+                'No hay un contacto activo «%(name)s» visible para la compañía %(company)s. '
+                'No se deshizo la orden.',
+                name=CONSUMIDOR_FINAL_NAME,
+                company=company.display_name,
+            ))
+        raise UserError(_(
+            'Hay más de un contacto «%(name)s» para la compañía %(company)s. '
+            'No se deshizo la orden.',
+            name=CONSUMIDOR_FINAL_NAME,
+            company=company.display_name,
+        ))
+
+    def _kai_official_consumidor_final(self, company):
+        partner = self.env.ref(CONSUMIDOR_FINAL_XMLID, raise_if_not_found=False)
+        if not partner:
+            return self.env['res.partner']
+        try:
+            partner.check_access('read')
+            applicable = (
+                partner.active
+                and partner.name == CONSUMIDOR_FINAL_NAME
+                and (not partner.company_id or partner.company_id == company)
+            )
+        except AccessError:
+            return self.env['res.partner']
+        return partner if applicable else self.env['res.partner']
 
     def _kai_check_undo_access(self):
         if not self.env.user.has_group('purchase.group_purchase_user'):

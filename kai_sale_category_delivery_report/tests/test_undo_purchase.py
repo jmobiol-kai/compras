@@ -33,6 +33,9 @@ class TestUndoPurchaseTrace(TransactionCase):
             'categ_id': cls.categ.id,
             'standard_price': 3.0,
         })
+        cls.consumidor = cls.env['res.partner'].create({
+            'name': 'Consumidor Final Anónimo',
+        })
 
     def _generate(self, product=None, qty=12.0):
         product = product or self.product
@@ -73,8 +76,12 @@ class TestUndoPurchaseTrace(TransactionCase):
         self.assertFalse(purchase.order_line)
         self.assertFalse(purchase.kai_allocation_ids)
         self.assertEqual(purchase.kai_sale_order_count, 0)
-        self.assertEqual(purchase.partner_id, self.vendor)
+        self.assertEqual(purchase.partner_id, self.consumidor)
         self.assertEqual(purchase.partner_ref, 'FAC-PROVEEDOR')
+        expected_position = self.env['account.fiscal.position'].with_company(
+            purchase.company_id
+        )._get_fiscal_position(self.consumidor)
+        self.assertEqual(purchase.fiscal_position_id, expected_position)
         self.assertFalse(purchase.origin)
         self.assertTrue(sale_line.exists())
         self.assertEqual(sale.state, 'sale')
@@ -224,3 +231,51 @@ class TestUndoPurchaseTrace(TransactionCase):
         purchase.action_kai_undo_sale_trace()
         self.assertEqual(purchase.origin, 'Pedido manual')
         self.assertEqual(purchase.state, 'draft')
+        self.assertEqual(purchase.partner_id, self.consumidor)
+
+    def test_missing_or_ambiguous_or_other_company_rolls_back(self):
+        _sale, purchase = self._generate()
+        self.consumidor.unlink()
+        with self.assertRaises(UserError):
+            purchase.action_kai_undo_sale_trace()
+        self.assertEqual(purchase.state, 'draft')
+        self.assertEqual(purchase.partner_id, self.vendor)
+        self.assertTrue(purchase.order_line)
+        self.assertTrue(purchase.kai_allocation_ids)
+
+        first = self.env['res.partner'].create({'name': 'Consumidor Final Anónimo'})
+        second = self.env['res.partner'].create({'name': 'Consumidor Final Anónimo'})
+        with self.assertRaises(UserError):
+            purchase.action_kai_undo_sale_trace()
+        self.assertEqual(purchase.partner_id, self.vendor)
+        self.assertTrue(purchase.order_line)
+        first.unlink()
+        second.unlink()
+
+        other = self.env['res.company'].create({'name': 'KAI Undo Other Company'})
+        self.env['res.partner'].create({
+            'name': 'Consumidor Final Anónimo',
+            'company_id': other.id,
+        })
+        with self.assertRaises(UserError):
+            purchase.action_kai_undo_sale_trace()
+        self.assertEqual(purchase.partner_id, self.vendor)
+        self.assertTrue(purchase.order_line)
+        self.assertTrue(purchase.kai_allocation_ids)
+
+    def test_official_xmlid_wins_over_another_same_name(self):
+        _sale, purchase = self._generate()
+        self.env['res.partner'].create({'name': 'Consumidor Final Anónimo'})
+        self.env['ir.model.data'].create({
+            'module': 'l10n_ar',
+            'name': 'par_cfa',
+            'model': 'res.partner',
+            'res_id': self.consumidor.id,
+            'noupdate': True,
+        })
+        purchase.partner_ref = 'REF-MANUAL'
+        purchase.action_kai_undo_sale_trace()
+        self.assertEqual(purchase.partner_id, self.consumidor)
+        self.assertEqual(purchase.partner_ref, 'REF-MANUAL')
+        self.assertEqual(purchase.state, 'draft')
+        self.assertFalse(purchase.order_line)

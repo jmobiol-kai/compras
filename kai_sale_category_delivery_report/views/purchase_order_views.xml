@@ -10,7 +10,7 @@
                         string="Anular y deshacer"
                         groups="purchase.group_purchase_user"
                         invisible="not kai_allocation_ids or state not in ('draft', 'sent', 'cancel')"
-                        confirm="Se cancela la cotización si sigue abierta, se borran sus productos y los vínculos con ventas, y vuelve a borrador con el mismo número. No se borran las ventas ni esta orden. El proveedor se mantiene. Después se puede volver a usar."/>
+                        confirm="Se cancela la cotización si sigue abierta, se borran sus productos y los vínculos con ventas, y vuelve a borrador con el mismo número. El proveedor pasa a Consumidor Final Anónimo. No se borran las ventas ni esta orden, ni la referencia de proveedor. Después se puede volver a usar."/>
             </button>
             <div name="button_box" position="inside">
                 <button name="action_view_kai_source_sales" type="object"

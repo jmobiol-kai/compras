@@ -57,12 +57,17 @@ sin este vínculo no descuentan, aunque el origen diga la fecha de entrega.
 «Anular y deshacer» está en la cotización que tiene vínculos del informe,
 en borrador, enviada o cancelada. Cancela si sigue abierta, quita esos
 vínculos y los productos de la compra, y la deja en borrador con el mismo
-número y el mismo proveedor. No borra las ventas ni la orden, y no toca
-la referencia de proveedor. La demanda queda libre. Cancelar con el botón
-normal no borra líneas ni vínculos. Una orden confirmada, con recepción
-hecha, factura o pago, no se deshace.
+número. El proveedor pasa a Consumidor Final Anónimo: el contacto oficial
+l10n_ar.par_cfa si está instalado y corresponde a la compañía, o el único
+contacto activo con ese nombre exacto (compañía vacía o la de la orden).
+Si no hay ninguno o hay más de uno, no cambia nada. No crea contactos ni
+busca por nombre parcial. La referencia de proveedor no se toca. La
+posición fiscal se recalcula con el contacto nuevo. No borra las ventas
+ni la orden. La demanda queda libre. Cancelar con el botón normal no borra
+líneas ni vínculos. Una orden confirmada, con recepción hecha, factura o
+pago, no se deshace.
 """,
-    'version': '19.0.1.0.6',
+    'version': '19.0.1.0.7',
     'category': 'Sales',
     'author': 'Kaizendo',
     'license': 'LGPL-3',
