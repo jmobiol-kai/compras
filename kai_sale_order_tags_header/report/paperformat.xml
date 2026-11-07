@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        Sale quotations, orders and proformas only. Does not replace
+        base.paperformat_euro, so invoices and other apps keep the company
+        format (100mm / 90mm on Happ and Blinis).
+
+        With Odoo's header document (html height 0, body height 100%),
+        wkhtmltopdf pins the header to the top of the page when
+        header_spacing stays a few millimetres under margin_top, and starts
+        the body at margin_top. A larger gap between those two values drops
+        the header onto the lines.         80mm fits a long address, the three phone lines, a shipping block and
+        wrapped tags (that block ended near 73mm in a local wkhtmltopdf run)
+        and starts the lines just below it. It is lower than the 100mm top
+        margin that pushed the customer down to ~110mm. A shorter header
+        keeps the logo and the customer together and leaves the unused part
+        of this fixed margin above the table.
+    -->
+    <record id="paperformat_saleorder" model="report.paperformat">
+        <field name="name">A4 ventas</field>
+        <field name="default" eval="False"/>
+        <field name="format">A4</field>
+        <field name="page_height">0</field>
+        <field name="page_width">0</field>
+        <field name="orientation">Portrait</field>
+        <field name="margin_top">80</field>
+        <field name="margin_bottom">32</field>
+        <field name="margin_left">0</field>
+        <field name="margin_right">0</field>
+        <field name="header_line" eval="False"/>
+        <field name="header_spacing">72</field>
+        <field name="dpi">90</field>
+        <field name="css_margins" eval="True"/>
+    </record>
+
+    <record id="sale.action_report_saleorder" model="ir.actions.report">
+        <field name="paperformat_id" ref="paperformat_saleorder"/>
+    </record>
+    <record id="sale.action_report_pro_forma_invoice" model="ir.actions.report">
+        <field name="paperformat_id" ref="paperformat_saleorder"/>
+    </record>
+</odoo>

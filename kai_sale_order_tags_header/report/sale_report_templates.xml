@@ -7,7 +7,7 @@
                 <t t-set="kai_tag_palette" t-value="['#6c757d', '#F06050', '#F4A460', '#F7CD1F', '#6CC1ED', '#814968', '#EB7E7F', '#2C8397', '#475577', '#D6145F', '#30C381', '#9365B8']"/>
                 <t t-foreach="doc.tag_ids" t-as="kai_tag">
                     <span class="kai_so_tag"
-                          t-att-style="'display: inline-block; margin-left: 6px; padding: 2px 8px; border-radius: 10px; font-size: 0.55em; font-weight: normal; vertical-align: middle; color: #ffffff; background-color: %s;' % kai_tag_palette[(kai_tag.color or 0) % 12]"
+                          t-att-style="'display: inline-block; max-width: 240px; margin: 0 0 2px 6px; padding: 1px 8px; border-radius: 10px; font-size: 10px; font-weight: normal; line-height: 1.3; vertical-align: middle; white-space: normal; color: #ffffff; background-color: %s;' % kai_tag_palette[(kai_tag.color or 0) % 12]"
                           t-out="kai_tag.name"/>
                 </t>
             </t>
@@ -49,6 +49,60 @@
     <template id="report_saleorder_document_delivery_datetime" inherit_id="sale.report_saleorder_document">
         <xpath expr="//div[@name='delivery_date']/div[@t-field='doc.commitment_date']" position="attributes">
             <attribute name="t-options">{'widget': 'datetime', 'format': 'dd/MM/yyyy HH:mm', 'tz_name': doc.user_id.tz or 'America/Argentina/Buenos_Aires'}</attribute>
+        </xpath>
+    </template>
+
+    <!--
+        Priority 32: after sale_stock (incoterm) and the datetime option above.
+        The informations block (dates, salesperson, incoterm) is captured into
+        a variable and printed from the header, so wkhtmltopdf repeats it.
+        The nodes stay in this template, which keeps their translations.
+    -->
+    <template id="report_saleorder_document_repeat_header" inherit_id="sale.report_saleorder_document" priority="32">
+        <xpath expr="//t[@t-call='web.external_layout']" position="inside">
+            <t t-set="kai_sale_header" t-value="True"/>
+        </xpath>
+        <xpath expr="//div[@id='informations']" position="attributes">
+            <attribute name="class">row mb-0 mt-1 kai_sale_informations</attribute>
+        </xpath>
+        <xpath expr="//div[@id='informations']" position="after">
+            <t t-set="kai_sale_informations">
+                <div id="kai_sale_informations_anchor"/>
+            </t>
+        </xpath>
+        <xpath expr="//div[@id='kai_sale_informations_anchor']" position="replace">
+            <xpath expr="//div[@id='informations']" position="move"/>
+        </xpath>
+    </template>
+
+    <!--
+        Standard layout only (Happ and Blinis). The customer column and the
+        order line are inside div.header, which wkhtmltopdf repeats on every
+        page, including a last page that only has totals. Invoices do not set
+        kai_sale_header, so this adds nothing to them.
+    -->
+    <template id="external_layout_standard_sale_header" inherit_id="web.external_layout_standard">
+        <xpath expr="//div[@name='company_address']" position="after">
+            <div t-if="kai_sale_header" name="kai_sale_customer" class="col-6" style="font-size: 11px; line-height: 1.15;">
+                <t t-out="address"/>
+                <div t-if="information_block" style="margin-top: 1mm;">
+                    <t t-out="information_block"/>
+                </div>
+            </div>
+        </xpath>
+        <xpath expr="//div[@name='company_address']/.." position="after">
+            <div t-if="kai_sale_header" name="kai_sale_repeat" style="font-size: 11px; line-height: 1.2; margin-top: 1mm; padding-bottom: 1mm; border-bottom: 0.3mm solid #212529;">
+                <div style="font-size: 13px; font-weight: 700; line-height: 1.25;">
+                    <t t-out="layout_document_title"/>
+                </div>
+                <t t-out="kai_sale_informations"/>
+            </div>
+        </xpath>
+        <xpath expr="//t[@t-call='web.address_layout']" position="attributes">
+            <attribute name="t-if">not kai_sale_header</attribute>
+        </xpath>
+        <xpath expr="//h2[@t-out='layout_document_title']" position="attributes">
+            <attribute name="t-if">not kai_sale_header</attribute>
         </xpath>
     </template>
 </odoo>
