@@ -27,7 +27,15 @@ ni se filtra por supplier_rank: en esta base los proveedores están en
 product.supplierinfo). «Generar orden de compra» crea de inmediato una sola
 OC en borrador, con una línea por producto comprable (purchase_ok). La
 cantidad es la del informe, en la unidad del proveedor o en la del producto.
-El tipo de recepción sale del default de la compañía (purchase_stock).
+El precio unitario de cada línea nueva es el costo del producto
+(standard_price) de la compañía de la OC, pasado a la unidad de la línea y
+a la moneda de la OC. No es el precio de venta ni la tarifa del proveedor.
+Si el costo es cero, el precio queda en cero. El campo sigue siendo editable.
+No se reescriben precios de compras ya creadas ni el costo del producto.
+Los impuestos de compra y la posición fiscal se mantienen; un impuesto
+incluido que la posición fiscal quite se descuenta para no sumar el IVA
+dos veces. El tipo de recepción sale del default de la compañía
+(purchase_stock).
 El formulario que se abre es el de compras estándar y queda editable en
 borrador (referencia de proveedor y diario de compras de la compañía). El
 listado del informe sigue sin edición. No se tocan los readonly de una OC
@@ -46,7 +54,7 @@ el informe lo marca excedido y no genera otra compra por esa línea. No se
 puede borrar una línea de venta que siga cubierta. Las compras anteriores
 sin este vínculo no descuentan, aunque el origen diga la fecha de entrega.
 """,
-    'version': '19.0.1.0.4',
+    'version': '19.0.1.0.5',
     'category': 'Sales',
     'author': 'Kaizendo',
     'license': 'LGPL-3',

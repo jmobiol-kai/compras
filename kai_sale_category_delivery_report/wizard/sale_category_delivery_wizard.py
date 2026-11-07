@@ -276,6 +276,36 @@ class KaiSaleCategoryDeliveryWizard(models.TransientModel):
             'context': purchase_order_action_context(),
         }
 
+    def _line_cost_price_unit(self, line):
+        """Unit cost for a new purchase line. Existing lines are not passed here.
+
+        ``standard_price`` of the PO company, in the product UoM and the cost
+        currency. Converted to the line UoM and the PO currency. It is not the
+        sales price and not ``product.supplierinfo`` (that tariff is what leaves
+        the price at 0 when the vendor has no price). A real zero stays zero.
+
+        Purchase taxes already mapped by the fiscal position stay on the line.
+        ``_fix_tax_included_price_company`` only strips an included tax that the
+        position removed, so that VAT is not applied a second time. The product
+        cost itself is not written.
+        """
+        order = line.order_id
+        company = order.company_id
+        product = line.product_id.with_company(company)
+        cost = product.standard_price or 0.0
+        if not cost:
+            return 0.0
+        purchase_uom = line.product_uom_id or product.uom_id
+        price = product.uom_id._compute_price(cost, purchase_uom)
+        supplier_taxes = product.supplier_taxes_id._filter_taxes_by_company(company)
+        price = self.env['account.tax']._fix_tax_included_price_company(
+            price, supplier_taxes, line.tax_ids, company,
+        )
+        date = order.date_order or fields.Date.context_today(self)
+        return product.cost_currency_id._convert(
+            price, order.currency_id, company, date,
+        )
+
     def _purchase_qty_uom(self, product, qty_in_product_uom):
         """Quantity and purchase UoM for this vendor.
 
@@ -417,6 +447,12 @@ class KaiSaleCategoryDeliveryWizard(models.TransientModel):
         # Keep the sale delivery day if a later compute rewrote the schedule.
         # No coverage rows exist yet, so this write does not change links.
         purchase_lines.write({'date_planned': planned})
+        # Cost after create: the purchase compute may have filled the vendor
+        # price (often 0). Only these new lines are rewritten.
+        for line in purchase_lines:
+            line.price_unit = self._line_cost_price_unit(line)
+            if 'discount' in line._fields:
+                line.discount = 0.0
 
         allocation_vals = []
         sale_order_ids = set()
