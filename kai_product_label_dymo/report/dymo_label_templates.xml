@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Fit the label body to the 55×43 mm sheet (2 mm padding on each side). -->
+    <template id="report_productlabel_dymo_size" inherit_id="product.report_productlabel_dymo">
+        <xpath expr="//t[@t-set='table_style']" position="replace">
+            <t t-set="table_style" t-value="'width:100%;height:39mm;'"/>
+        </xpath>
+    </template>
+
+    <!-- Dymo label only: internal reference (default_code) at 4× the original 8 pt = 32 pt in the PDF (24pt CSS; wkhtmltopdf at dpi 96 scales pt by 96/72).
+         It goes on its own line so it does not overlap the price on a 55 mm width. -->
+    <template id="report_simple_label_dymo_ref" inherit_id="product.report_simple_label_dymo">
+        <xpath expr="//div[hasclass('o_label_dymo')]" position="attributes">
+            <attribute name="t-att-style">(padding_page or '') + ';width:55mm;height:43mm;box-sizing:border-box;margin-left:-2mm;margin-right:0;display:table;'</attribute>
+        </xpath>
+        <!-- Everything horizontally centered. -->
+        <xpath expr="//div[hasclass('o_label_full')]" position="attributes">
+            <attribute name="t-att-style">table_style + 'text-align:center;display:table-cell;vertical-align:middle;padding-top:4mm;height:35mm;'</attribute>
+        </xpath>
+        <xpath expr="//div[hasclass('o_label_small_barcode')]" position="attributes">
+            <attribute name="class">text-center o_label_small_barcode</attribute>
+            <attribute name="style">text-align:center;</attribute>
+            <attribute name="t-if">barcode</attribute>
+        </xpath>
+        <xpath expr="//div[hasclass('o_label_left_column')]" position="replace">
+            <div style="width:100%;box-sizing:border-box;clear:both;overflow:hidden;padding:2px 4px;text-align:center;">
+                <span class="text-nowrap" t-field="product.default_code" style="font-size:24pt;line-height:1.1;"/>
+            </div>
+        </xpath>
+        <!-- No price on the Dymo label. -->
+        <xpath expr="//div[hasclass('text-end')]" position="replace"/>
+    </template>
+</odoo>
