@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_kai_margin_contribution_list" model="ir.ui.view">
+        <field name="name">kai.margin.contribution.report.list</field>
+        <field name="model">kai.margin.contribution.report</field>
+        <field name="arch" type="xml">
+            <list string="Contribución marginal" create="false" edit="false" delete="false">
+                <field name="date"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+                <field name="product_id"/>
+                <field name="categ_id" optional="hide"/>
+                <field name="sales_amount" sum="Ventas netas"/>
+                <field name="cogs_amount" sum="CMV"/>
+                <field name="margin_amount" sum="Contribución"/>
+                <field name="margin_percent"/>
+                <field name="currency_id" column_invisible="1"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_kai_margin_contribution_pivot" model="ir.ui.view">
+        <field name="name">kai.margin.contribution.report.pivot</field>
+        <field name="model">kai.margin.contribution.report</field>
+        <field name="arch" type="xml">
+            <pivot string="Contribución marginal">
+                <field name="date" type="row" interval="month"/>
+                <field name="product_id" type="row"/>
+                <field name="company_id" type="col"/>
+                <field name="sales_amount" type="measure"/>
+                <field name="cogs_amount" type="measure"/>
+                <field name="margin_amount" type="measure"/>
+                <field name="margin_percent" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="view_kai_margin_contribution_graph" model="ir.ui.view">
+        <field name="name">kai.margin.contribution.report.graph</field>
+        <field name="model">kai.margin.contribution.report</field>
+        <field name="arch" type="xml">
+            <graph string="Contribución marginal" type="bar">
+                <field name="date" interval="month"/>
+                <field name="company_id"/>
+                <field name="margin_amount" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="view_kai_margin_contribution_search" model="ir.ui.view">
+        <field name="name">kai.margin.contribution.report.search</field>
+        <field name="model">kai.margin.contribution.report</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="product_id"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+                <field name="categ_id"/>
+                <filter name="filter_date" string="Mes" date="date"/>
+                <group>
+                    <filter name="group_company" string="Compañía" context="{'group_by': 'company_id'}"/>
+                    <filter name="group_product" string="Producto" context="{'group_by': 'product_id'}"/>
+                    <filter name="group_categ" string="Categoría" context="{'group_by': 'categ_id'}"/>
+                    <filter name="group_month" string="Mes" context="{'group_by': 'date:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_kai_margin_contribution" model="ir.actions.act_window">
+        <field name="name">Contribución marginal</field>
+        <field name="res_model">kai.margin.contribution.report</field>
+        <field name="view_mode">pivot,graph,list</field>
+        <field name="search_view_id" ref="view_kai_margin_contribution_search"/>
+        <field name="help" type="html">
+            <p>
+                Ventas netas, CMV y contribución por compañía, producto y mes.
+                Incluye facturas de cliente (y su CMV FIFO en las líneas de
+                costo de venta) y pedidos de POS que no están facturados.
+            </p>
+        </field>
+    </record>
+
+    <menuitem id="menu_kai_margin_contribution_account"
+              name="Contribución marginal"
+              parent="account.menu_finance_reports"
+              action="action_kai_margin_contribution"
+              sequence="50"
+              groups="account.group_account_readonly,account.group_account_invoice"/>
+
+    <menuitem id="menu_kai_margin_contribution_pos"
+              name="Contribución marginal"
+              parent="point_of_sale.menu_point_rep"
+              action="action_kai_margin_contribution"
+              sequence="50"
+              groups="point_of_sale.group_pos_user"/>
+</odoo>
