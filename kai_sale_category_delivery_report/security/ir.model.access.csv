@@ -3,3 +3,7 @@ access_kai_sale_categ_delivery_wizard_sale_user,kai.sale.category.delivery.wizar
 access_kai_sale_categ_delivery_line_sale_user,kai.sale.category.delivery.line.sale.user,model_kai_sale_category_delivery_line,sales_team.group_sale_salesman,1,1,1,1
 access_kai_sale_categ_delivery_wizard_purchase_user,kai.sale.category.delivery.wizard.purchase.user,model_kai_sale_category_delivery_wizard,purchase.group_purchase_user,1,1,1,1
 access_kai_sale_categ_delivery_line_purchase_user,kai.sale.category.delivery.line.purchase.user,model_kai_sale_category_delivery_line,purchase.group_purchase_user,1,1,1,1
+access_kai_sale_categ_delivery_origin_sale_user,kai.sale.category.delivery.origin.sale.user,model_kai_sale_category_delivery_origin,sales_team.group_sale_salesman,1,1,1,1
+access_kai_sale_categ_delivery_origin_purchase_user,kai.sale.category.delivery.origin.purchase.user,model_kai_sale_category_delivery_origin,purchase.group_purchase_user,1,1,1,1
+access_kai_sale_po_allocation_sale_user,kai.sale.po.allocation.sale.user,model_kai_sale_po_allocation,sales_team.group_sale_salesman,1,0,0,0
+access_kai_sale_po_allocation_purchase_user,kai.sale.po.allocation.purchase.user,model_kai_sale_po_allocation,purchase.group_purchase_user,1,1,1,1

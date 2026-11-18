@@ -9,7 +9,6 @@
                     <group>
                         <field name="categ_ids" widget="many2many_tags" options="{'no_create': True}"/>
                         <field name="delivery_date"/>
-                        <field name="include_draft"/>
                     </group>
                     <group>
                         <field name="partner_id"
