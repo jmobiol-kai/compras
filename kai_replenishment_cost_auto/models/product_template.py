@@ -7,12 +7,19 @@ from odoo.tools import float_is_zero
 class ProductTemplate(models.Model):
     _inherit = 'product.template'
 
+    # En product_replenishment_cost_mrp 19.0.1.0.0 (el que va con
+    # product_replenishment_cost 19.0.1.3.0) el costo no es recursive.
+    # Sin esto, al calcular en lote el ORM devuelve 0 para el componente
+    # que está en el mismo batch. 19.0.1.2.0 de Adhoc ya lo marca; repetirlo
+    # no cambia columnas.
+    replenishment_cost = fields.Float(recursive=True)
+    replenishment_base_cost_on_currency = fields.Float(recursive=True)
+
     @api.depends_context('company')
     @api.depends(
         'seller_ids.net_price',
         'seller_ids.price',
         'seller_ids.currency_id',
-        'seller_ids.product_uom_id',
         'seller_ids.company_id',
         'seller_ids.last_date_price_updated',
         'replenishment_cost_type',
@@ -20,8 +27,11 @@ class ProductTemplate(models.Model):
     def _compute_supplier_data(self):
         super()._compute_supplier_data()
         # La tarifa compartida (company_id vacío) es el costo único del grupo.
-        # Una tarifa de una sucursal no la pisa, aunque su fecha sea posterior:
-        # el último precio pagado en cualquier sucursal queda en la compartida.
+        # Una tarifa de una sucursal no la pisa, aunque su fecha sea posterior.
+        # supplier_uom_id existe recién en product_replenishment_cost 19.0.1.7.0.
+        # En 19.0.1.3.0 el costo usa supplier_price tal cual, y nosotros lo
+        # guardamos ya en la UdM del producto.
+        has_supplier_uom = 'supplier_uom_id' in self._fields
         for product in self.filtered(lambda item: item.replenishment_cost_type == 'last_supplier_price'):
             shared = product.seller_ids.filtered(lambda seller: not seller.company_id and seller.price > 0)
             if not shared:
@@ -30,19 +40,19 @@ class ProductTemplate(models.Model):
                 key=lambda seller: seller.last_date_price_updated or datetime.min,
                 reverse=True,
             )[:1]
-            product.update({
+            values = {
                 'supplier_price': chosen.net_price or 0.0,
                 'supplier_currency_id': chosen.currency_id,
-                'supplier_uom_id': chosen.product_uom_id,
-            })
+            }
+            if has_supplier_uom:
+                values['supplier_uom_id'] = chosen.product_uom_id
+            product.update(values)
 
     @api.depends_context('company')
     @api.depends(
         'currency_id',
         'supplier_price',
         'supplier_currency_id',
-        'supplier_uom_id',
-        'uom_id',
         'replenishment_cost_type',
         'replenishment_base_cost',
         'replenishment_base_cost_currency_id',

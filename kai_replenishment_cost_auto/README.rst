@@ -9,13 +9,21 @@ contable (``standard_price``, FIFO en tiempo real) no se toca.
 Depende de ``purchase``, ``mrp``, ``point_of_sale``, ``account`` y de los
 módulos de Adhoc en la rama 19.0 de ``ingadhoc/product``:
 
-* ``product_replenishment_cost`` (19.0.1.7.0): el costo de reposición no está
-  almacenado. Con tipo «Último precio de proveedor» toma la tarifa cuya
-  ``last_date_price_updated`` es la más nueva. ``net_price`` es ``price``
-  salvo que la tarifa tenga una regla de recargo.
-* ``product_replenishment_cost_mrp``: tipo «Basado en LdM». El costo es el
-  roll-up de la lista de materiales (``bom.explode``), también sin almacenar.
-* ``product_planned_price``: con tipo «Por margen», el precio planificado es
+* ``product_replenishment_cost`` **19.0.1.3.0** (commit ``b0b2074``, el que
+  está en el servidor) o posterior. El costo no está almacenado. Con tipo
+  «Último precio de proveedor» toma la tarifa cuya ``last_date_price_updated``
+  es la más nueva. ``net_price`` es ``price`` salvo que la tarifa tenga una
+  regla de recargo. En 19.0.1.3.0 no existe ``supplier_uom_id`` y el costo
+  usa ``supplier_price`` sin convertir la unidad: por eso la tarifa se guarda
+  ya en la unidad del producto. Desde 19.0.1.7.0 Adhoc convierte la unidad
+  de la tarifa; como la nuestra es la del producto, el resultado es el mismo.
+* ``product_replenishment_cost_mrp`` 19.0.1.0.0 (el que acompaña a 1.3.0) o
+  posterior. Tipo «Basado en LdM». El costo es el roll-up de la lista de
+  materiales (``bom.explode``), también sin almacenar. 19.0.1.0.0 no marca
+  el campo como ``recursive``; este módulo sí, para que un lote de dos niveles
+  no devuelva 0 en el componente.
+* ``product_planned_price`` 19.0.1.0.0 o posterior. Con tipo «Por margen», el
+  precio planificado es
   ``reposición de la compañía principal * (1 + margen%) + recargo``. El
   cron copia ese valor a ``list_price``. Este módulo llama al mismo método
   en el momento, sin esperar al cron.
