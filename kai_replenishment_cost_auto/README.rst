@@ -76,10 +76,10 @@ Compras → Productos → «Productos con costo 0 sin compras».
 
 Lista, exportable, de productos comprables de tipo bienes (almacenables y
 consumibles: en Odoo 19 los dos son ``type = consu``). Entra el que no tiene
-ninguna tarifa con precio > 0 y cuyo costo de reposición, evaluado en la
-compañía principal, es 0. Un producto por fila, no uno por sucursal. Los
-servicios no entran. Si el costo contable cubre el hueco por el reemplazo de
-arriba, el producto no aparece.
+ninguna tarifa con precio > 0 y cuyo costo de reposición es 0. Un producto
+por fila. ``standard_price`` es por compañía: si alguna sucursal lo tiene
+mayor que cero, el producto no entra. Un fabricado entra solo si el roll-up
+es 0 en todas las compañías. Los servicios no entran.
 
 Contribución marginal
 ---------------------

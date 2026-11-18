@@ -18,7 +18,15 @@ class KaiReplenishmentCommon(AccountTestInvoicingCommon):
             'list_price': 1.0,
         }
         vals.update(extra)
-        return self.env['product.product'].create(vals)
+        product = self.env['product.product'].create(vals)
+        # account crea el producto y, si no tiene compañía, le agrega el
+        # impuesto por defecto de las otras compañías. Uno con precio
+        # incluido (IVA 21%) cambia el precio planificado. Se dejan vacíos.
+        product.write({
+            'taxes_id': [Command.clear()],
+            'supplier_taxes_id': [Command.clear()],
+        })
+        return product
 
     def _shared_seller(self, product, partner, price):
         return self.env['product.supplierinfo'].create({

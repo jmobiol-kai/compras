@@ -77,7 +77,7 @@ class TestMarginReport(KaiReplenishmentCommon):
         self._pos_line(session, product, subtotal=80.0, cost=30.0, when=when, invoice=invoice)
         self._pos_line(session, product, subtotal=10.0, cost=4.0, when=when, refund=True)
 
-        report = self.env['kai.margin.contribution.report'].search([
+        report = self.env['kai.margin.contribution.report'].sudo().search([
             ('product_id', '=', product.id),
             ('company_id', '=', self.env.company.id),
             ('date', '=', date(2026, 6, 1)),
@@ -91,15 +91,17 @@ class TestMarginReport(KaiReplenishmentCommon):
         self.assertAlmostEqual(report.margin_percent, 60.0, places=2)
 
     def _pos_session(self):
-        config = self.env['pos.config'].create({
+        # En una base real el usuario del test no tiene permiso de crear
+        # pos.config. El alta es de setup, con sudo.
+        config = self.env['pos.config'].sudo().create({
             'name': 'Kai POS margin',
             'journal_id': self.company_data['default_journal_sale'].id,
             'invoice_journal_id': self.company_data['default_journal_sale'].id,
         })
-        return self.env['pos.session'].create({'config_id': config.id})
+        return self.env['pos.session'].sudo().create({'config_id': config.id})
 
     def _pos_line(self, session, product, subtotal, cost, when, invoice=None, refund=False):
-        return self.env['pos.order'].create({
+        return self.env['pos.order'].sudo().create({
             'company_id': self.env.company.id,
             'session_id': session.id,
             'config_id': session.config_id.id,

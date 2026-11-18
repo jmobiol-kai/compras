@@ -69,6 +69,10 @@ class ProductTemplate(models.Model):
         # contable de la compañía en curso, sin escribirlo de vuelta.
         company = self.env.company
         date = fields.Date.context_today(self)
+        # standard_price es company_dependent (jsonb). El cómputo de Adhoc
+        # corre con compute_sudo y, leído por el ORM en otra compañía, devuelve
+        # 0. Se toma la clave de la compañía en curso directo de la base.
+        accounting_costs = self._kai_standard_price_by_template(company)
         for product in self.filtered(
             lambda item: item.replenishment_cost_type in ('supplier_price', 'last_supplier_price')
         ):
@@ -77,10 +81,10 @@ class ProductTemplate(models.Model):
             )
             if priced:
                 continue
-            variant = product.product_variant_ids[:1].with_company(company)
+            variant = product.product_variant_ids[:1]
             if not variant:
                 continue
-            cost = variant.standard_price or 0.0
+            cost = accounting_costs.get(product.id, 0.0)
             src_currency = variant.cost_currency_id or company.currency_id
             if src_currency and product.currency_id and src_currency != product.currency_id:
                 cost = src_currency._convert(
@@ -147,29 +151,83 @@ class ProductTemplate(models.Model):
             frontier = nxt
         return parents
 
+    def _kai_standard_price_by_template(self, company):
+        """Costo contable (standard_price) de la compañía, por plantilla.
+
+        El campo es jsonb ``{id_compañía: importe}``. Un ORM con sudo o con
+        otra compañía en el contexto devuelve el fallback 0.
+        """
+        variants = self.with_context(active_test=False).product_variant_ids
+        if not variants or not company:
+            return {}
+        variants.flush_recordset(['standard_price'])
+        self.env.cr.execute(
+            """
+            SELECT product_tmpl_id,
+                   COALESCE(MAX((standard_price ->> %s)::numeric), 0)
+              FROM product_product
+             WHERE id IN %s
+             GROUP BY product_tmpl_id
+            """,
+            (str(company.id), tuple(variants.ids)),
+        )
+        return {template_id: float(amount or 0.0) for template_id, amount in self.env.cr.fetchall()}
+
+    def _kai_template_ids_with_any_standard_price(self):
+        """Plantillas con costo contable > 0 en alguna compañía."""
+        variants = self.with_context(active_test=False).product_variant_ids
+        if not variants:
+            return set()
+        variants.flush_recordset(['standard_price'])
+        self.env.cr.execute(
+            """
+            SELECT DISTINCT pp.product_tmpl_id
+              FROM product_product pp
+              CROSS JOIN LATERAL jsonb_each(
+                  COALESCE(pp.standard_price, '{}'::jsonb)
+              ) AS kv(key, value)
+             WHERE pp.id IN %s
+               AND jsonb_typeof(kv.value) = 'number'
+               AND (kv.value #>> '{}')::numeric > 0
+            """,
+            (tuple(variants.ids),),
+        )
+        return {row[0] for row in self.env.cr.fetchall()}
+
     def action_kai_open_zero_replenishment_cost(self):
         """Productos comprables con costo de reposición 0 y sin tarifa > 0.
 
-        Un registro por producto (la tarifa compartida no se parte por
-        compañía). El costo se evalúa en la compañía principal, que es la
-        que usa el precio planificado.
+        Un registro por producto. El costo contable es por compañía: si
+        cualquier sucursal tiene ``standard_price`` > 0, el producto no entra.
+        Un fabricado entra solo si el roll-up es 0 en todas las compañías.
         """
         precision = self.env['decimal.precision'].precision_get('Product Price')
-        main = self.env['res.company']._get_main_company()
-        products = self.sudo().with_company(main).search([
+        products = self.sudo().search([
             ('purchase_ok', '=', True),
             ('type', '=', 'consu'),
         ])
         priced_ids = set(self.env['product.supplierinfo'].sudo().search([
             ('price', '>', 0),
-        ]).product_tmpl_id.ids)
+            ('product_tmpl_id', 'in', products.ids),
+        ]).product_tmpl_id.ids) if products else set()
         candidates = products.filtered(lambda product: product.id not in priced_ids)
-        candidates.invalidate_recordset(['replenishment_cost'])
-        zero_ids = [
-            product.id
-            for product in candidates.with_company(main)
-            if float_is_zero(product.replenishment_cost, precision_digits=precision)
-        ]
+        with_accounting_cost = candidates._kai_template_ids_with_any_standard_price()
+        candidates = candidates.filtered(lambda product: product.id not in with_accounting_cost)
+        companies = self.env['res.company'].sudo().search([])
+        zero_ids = []
+        for product in candidates:
+            if product.replenishment_cost_type != 'bom':
+                zero_ids.append(product.id)
+                continue
+            has_rollup = any(
+                not float_is_zero(
+                    product.with_company(company).replenishment_cost,
+                    precision_digits=precision,
+                )
+                for company in companies
+            )
+            if not has_rollup:
+                zero_ids.append(product.id)
         return {
             'type': 'ir.actions.act_window',
             'name': _('Productos con costo 0 sin compras'),
