@@ -30,7 +30,7 @@
                 <field name="kai_suggested_price" widget="monetary"/>
                 <field name="kai_price_difference" widget="monetary"/>
                 <field name="kai_price_difference_percent"/>
-            </field>
+            </div>
         </field>
     </record>
 
