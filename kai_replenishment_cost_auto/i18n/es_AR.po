@@ -33,11 +33,6 @@ msgid "Productos con costo 0 sin compras"
 msgstr "Productos con costo 0 sin compras"
 
 #. module: kai_replenishment_cost_auto
-#: code:addons/kai_replenishment_cost_auto/models/product_template.py:0
-msgid "Actualizar precios de venta por costo de reposición"
-msgstr "Actualizar precios de venta por costo de reposición"
-
-#. module: kai_replenishment_cost_auto
 #: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_product_category__kai_margin_defined
 msgid "Definir margen"
 msgstr "Definir margen"
@@ -78,25 +73,41 @@ msgid "Recargo de la categoría"
 msgstr "Recargo de la categoría"
 
 #. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_product_template__kai_margin_percent
+msgid "Margen propio %"
+msgstr "Margen propio %"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_product_template__kai_surcharge
+msgid "Recargo propio"
+msgstr "Recargo propio"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_product_template__kai_suggested_price
+msgid "Precio sugerido"
+msgstr "Precio sugerido"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.actions.act_window,name:kai_replenishment_cost_auto.action_kai_suggested_price
+#: model:ir.ui.menu,name:kai_replenishment_cost_auto.menu_kai_suggested_price
+msgid "Precio sugerido vs. actual"
+msgstr "Precio sugerido vs. actual"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_product_template__kai_price_difference
+msgid "Diferencia vs. precio actual"
+msgstr "Diferencia vs. precio actual"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_product_template__kai_price_difference_percent
+msgid "Diferencia %"
+msgstr "Diferencia %"
+
+#. module: kai_replenishment_cost_auto
 #: model:ir.actions.act_window,name:kai_replenishment_cost_auto.action_kai_category_margin_import
 #: model:ir.ui.menu,name:kai_replenishment_cost_auto.menu_kai_category_margin_import
 msgid "Importar márgenes por categoría"
 msgstr "Importar márgenes por categoría"
-
-#. module: kai_replenishment_cost_auto
-#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_category_margin_import__apply_to_products
-msgid "Aplicar a los productos sin margen propio"
-msgstr "Aplicar a los productos sin margen propio"
-
-#. module: kai_replenishment_cost_auto
-#: code:addons/kai_replenishment_cost_auto/models/product_category.py:0
-msgid "Margen aplicado"
-msgstr "Margen aplicado"
-
-#. module: kai_replenishment_cost_auto
-#: code:addons/kai_replenishment_cost_auto/models/product_category.py:0
-msgid "Se actualizaron %s productos."
-msgstr "Se actualizaron %s productos."
 
 #. module: kai_replenishment_cost_auto
 #: code:addons/kai_replenishment_cost_auto/models/product_category.py:0

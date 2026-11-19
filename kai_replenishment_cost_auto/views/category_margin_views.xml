@@ -5,12 +5,6 @@
         <field name="model">product.category</field>
         <field name="inherit_id" ref="product.product_category_form_view"/>
         <field name="arch" type="xml">
-            <sheet position="before">
-                <header>
-                    <button name="action_kai_apply_margin" type="object"
-                            string="Aplicar margen a productos" class="btn-primary"/>
-                </header>
-            </sheet>
             <field name="parent_id" position="after">
                 <field name="kai_margin_defined"/>
                 <field name="kai_margin_percent" invisible="not kai_margin_defined"/>
@@ -21,16 +15,73 @@
         </field>
     </record>
 
-    <record id="product_template_form_own_margin" model="ir.ui.view">
-        <field name="name">product.template.form.kai.own.margin</field>
+    <record id="product_template_form_suggested_price" model="ir.ui.view">
+        <field name="name">product.template.form.kai.suggested.price</field>
         <field name="model">product.template</field>
-        <field name="inherit_id" ref="product_planned_price.product_template_only_form_view"/>
+        <field name="inherit_id" ref="product.product_template_form_view"/>
         <field name="arch" type="xml">
-            <field name="list_price_type" position="after">
-                <field name="kai_own_margin" invisible="list_price_type != 'by_margin'"/>
-                <field name="kai_category_margin_percent" invisible="kai_own_margin or list_price_type != 'by_margin'"/>
-                <field name="kai_category_surcharge" invisible="kai_own_margin or list_price_type != 'by_margin'"/>
+            <div name="list_price_uom" position="after">
+                <field name="currency_id" invisible="1"/>
+                <field name="kai_own_margin"/>
+                <field name="kai_margin_percent" invisible="not kai_own_margin"/>
+                <field name="kai_surcharge" invisible="not kai_own_margin"/>
+                <field name="kai_category_margin_percent" invisible="kai_own_margin"/>
+                <field name="kai_category_surcharge" invisible="kai_own_margin"/>
+                <field name="kai_suggested_price" widget="monetary"/>
+                <field name="kai_price_difference" widget="monetary"/>
+                <field name="kai_price_difference_percent"/>
             </field>
+        </field>
+    </record>
+
+    <record id="view_product_template_suggested_price_list" model="ir.ui.view">
+        <field name="name">product.template.list.kai.suggested.price</field>
+        <field name="model">product.template</field>
+        <field name="arch" type="xml">
+            <list string="Precio sugerido vs. actual" create="false">
+                <field name="default_code"/>
+                <field name="name"/>
+                <field name="categ_id"/>
+                <field name="list_price" string="Precio actual"/>
+                <field name="kai_suggested_price"/>
+                <field name="kai_price_difference"/>
+                <field name="kai_price_difference_percent"/>
+                <field name="kai_own_margin" optional="hide"/>
+                <field name="currency_id" column_invisible="1"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_product_template_suggested_price_search" model="ir.ui.view">
+        <field name="name">product.template.search.kai.suggested.price</field>
+        <field name="model">product.template</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="default_code"/>
+                <field name="categ_id"/>
+                <filter name="own_margin" string="Margen propio" domain="[('kai_own_margin', '=', True)]"/>
+                <filter name="category_margin" string="Margen de la categoría" domain="[('kai_own_margin', '=', False)]"/>
+                <group>
+                    <filter name="group_categ" string="Categoría" context="{'group_by': 'categ_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_kai_suggested_price" model="ir.actions.act_window">
+        <field name="name">Precio sugerido vs. actual</field>
+        <field name="res_model">product.template</field>
+        <field name="view_mode">list,form</field>
+        <field name="view_id" ref="view_product_template_suggested_price_list"/>
+        <field name="search_view_id" ref="view_product_template_suggested_price_search"/>
+        <field name="context">{'create': False}</field>
+        <field name="help" type="html">
+            <p>
+                Compara el precio de venta cargado a mano con el precio sugerido
+                a partir del costo de reposición y el margen de la categoría.
+                No modifica el precio de venta. La lista se puede exportar.
+            </p>
         </field>
     </record>
 
@@ -40,7 +91,6 @@
         <field name="arch" type="xml">
             <form string="Importar márgenes por categoría">
                 <group>
-                    <field name="apply_to_products"/>
                     <field name="data" placeholder="Bebidas;35;10&#10;Bebidas / Gaseosas;40"/>
                 </group>
                 <footer>
@@ -57,6 +107,12 @@
         <field name="view_mode">form</field>
         <field name="target">new</field>
     </record>
+
+    <menuitem id="menu_kai_suggested_price"
+              name="Precio sugerido vs. actual"
+              parent="stock.menu_stock_inventory_control"
+              action="action_kai_suggested_price"
+              sequence="30"/>
 
     <menuitem id="menu_kai_category_margin_import"
               name="Importar márgenes por categoría"

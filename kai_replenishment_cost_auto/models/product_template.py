@@ -17,10 +17,18 @@ class ProductTemplate(models.Model):
     kai_own_margin = fields.Boolean(
         string='Margen propio',
         help=(
-            'Si está marcado, el precio planificado usa el margen y el recargo '
-            'de este producto. Si no, usa los de la categoría (heredados del padre '
-            'cuando la categoría no define los suyos).'
+            'Si está marcado, el precio sugerido usa el margen y el recargo '
+            'de este producto. Si no, usa los de la categoría. No modifica '
+            'el precio de venta.'
         ),
+    )
+    kai_margin_percent = fields.Float(
+        string='Margen propio %',
+        digits='Discount',
+    )
+    kai_surcharge = fields.Float(
+        string='Recargo propio',
+        digits='Product Price',
     )
     kai_category_margin_percent = fields.Float(
         string='Margen de la categoría %',
@@ -31,6 +39,28 @@ class ProductTemplate(models.Model):
         string='Recargo de la categoría',
         related='categ_id.kai_effective_surcharge',
         digits='Product Price',
+    )
+    kai_suggested_price = fields.Float(
+        string='Precio sugerido',
+        compute='_compute_kai_suggested_price',
+        digits='Product Price',
+        help=(
+            'Costo de reposición de la compañía principal × (1 + margen %) '
+            '+ recargo. Si el impuesto de venta está incluido en el precio, '
+            'se suma. No se copia al precio de venta.'
+        ),
+    )
+    kai_price_difference = fields.Float(
+        string='Diferencia vs. precio actual',
+        compute='_compute_kai_suggested_price',
+        digits='Product Price',
+        help='Precio sugerido menos el precio de venta actual.',
+    )
+    kai_price_difference_percent = fields.Float(
+        string='Diferencia %',
+        compute='_compute_kai_suggested_price',
+        digits='Discount',
+        help='Diferencia dividida por el precio de venta actual.',
     )
 
     @api.depends_context('company')
@@ -115,17 +145,17 @@ class ProductTemplate(models.Model):
             product.replenishment_cost = cost
 
     def _kai_effective_margin(self):
-        """Margen y recargo que arman el precio: el del producto o el de la categoría."""
+        """Margen y recargo de referencia: el del producto o el de la categoría."""
         self.ensure_one()
         if self.kai_own_margin:
-            return self.sale_margin or 0.0, self.sale_surcharge or 0.0
+            return self.kai_margin_percent or 0.0, self.kai_surcharge or 0.0
         category = self.categ_id
         if not category:
             return 0.0, 0.0
         return category.kai_effective_margin_percent or 0.0, category.kai_effective_surcharge or 0.0
 
     def _kai_price_with_included_taxes(self, price):
-        """Suma el IVA incluido, igual que el precio planificado de Adhoc."""
+        """Suma el IVA si el impuesto de venta está incluido en el precio."""
         self.ensure_one()
         included = self.taxes_id.filtered('price_include')
         if not included:
@@ -138,81 +168,37 @@ class ProductTemplate(models.Model):
         )['total_included']
 
     @api.depends(
+        'list_price',
         'kai_own_margin',
+        'kai_margin_percent',
+        'kai_surcharge',
         'categ_id.kai_effective_margin_percent',
         'categ_id.kai_effective_surcharge',
+        'taxes_id',
+        'taxes_id.price_include',
+        'replenishment_cost',
+        'currency_id',
     )
-    def _compute_computed_list_price(self):
-        """«Por margen» sin margen propio usa el margen efectivo de la categoría.
+    @api.depends_context('company')
+    def _compute_kai_suggested_price(self):
+        """Referencia. No escribe list_price.
 
-        La fórmula es la de Adhoc: costo de reposición de la compañía principal
-        (en este cliente, Blinis SA) × (1 + margen %) + recargo, y el IVA si el
-        impuesto está incluido en el precio. Con margen propio se dejan los
-        campos sale_margin y sale_surcharge.
+        El costo es el de reposición de la compañía principal (Blinis SA).
+        En un fabricado ese costo ya incluye el roll-up de la lista de materiales.
         """
-        from_category = self.filtered(
-            lambda product: product.list_price_type == 'by_margin' and not product.kai_own_margin
-        )
-        super(ProductTemplate, self - from_category)._compute_computed_list_price()
-        for product in from_category:
+        main = self.env['res.company']._get_main_company()
+        priced = self.sudo().with_company(main)
+        for product, cost_product in zip(self, priced):
             margin, surcharge = product._kai_effective_margin()
-            price = product.replenishment_cost_main_company * (1.0 + margin / 100.0) + surcharge
-            product.computed_list_price = product._kai_price_with_included_taxes(price)
-
-    def _kai_schedule_planned_price_update(self):
-        """Recalcula list_price de estos productos y de quienes los usan en LdM.
-
-        ``queue_job`` es opcional: si está instalado, el recálculo queda en
-        un job; si no, corre en la misma transacción de la factura.
-        """
-        templates = self.sudo().exists()
-        if not templates:
-            return
-        if 'queue.job' in self.env.registry:
-            templates.with_delay(
-                description=_('Actualizar precios de venta por costo de reposición'),
-            )._kai_update_planned_prices_from_replenishment()
-            return
-        templates._kai_update_planned_prices_from_replenishment()
-
-    def _kai_update_planned_prices_from_replenishment(self):
-        """Copia el precio planificado (margen de Adhoc) al precio de venta.
-
-        El costo de reposición de Adhoc no está almacenado. Al leer
-        ``computed_list_price`` se resuelve el roll-up de la LdM en el momento,
-        y ``_update_prices_from_planned`` graba ``list_price``.
-        """
-        templates = self.sudo()
-        affected = templates | templates._kai_bom_parent_templates()
-        affected.invalidate_recordset()
-        targets = affected.filtered(lambda product: product.list_price_type == 'by_margin')
-        if not targets:
-            return
-        targets.with_context(bypass_base_automation=True)._update_prices_from_planned()
-        targets.invalidate_recordset(['list_price'])
-
-    def _kai_bom_parent_templates(self):
-        """Plantillas que consumen estos productos, en todos los niveles.
-
-        El conjunto ``seen`` corta los ciclos (un producto que vuelve a
-        aparecer no se vuelve a encolar).
-        """
-        BomLine = self.env['mrp.bom.line'].sudo()
-        seen = set(self.ids)
-        parents = self.env['product.template']
-        frontier = self
-        while frontier:
-            variants = frontier.with_context(active_test=False).product_variant_ids
-            if not variants:
-                break
-            lines = BomLine.search([('product_id', 'in', variants.ids)])
-            nxt = lines.bom_id.product_tmpl_id.filtered(lambda template: template.id not in seen)
-            if not nxt:
-                break
-            parents |= nxt
-            seen.update(nxt.ids)
-            frontier = nxt
-        return parents
+            base = cost_product.replenishment_cost * (1.0 + margin / 100.0) + surcharge
+            suggested = product._kai_price_with_included_taxes(base)
+            current = product.list_price or 0.0
+            difference = suggested - current
+            product.kai_suggested_price = suggested
+            product.kai_price_difference = difference
+            product.kai_price_difference_percent = (
+                difference / current * 100.0 if current else 0.0
+            )
 
     def _kai_standard_price_by_template(self, company):
         """Costo contable (standard_price) de la compañía, por plantilla.

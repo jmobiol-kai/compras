@@ -17,13 +17,12 @@ class AccountMove(models.Model):
         return res
 
     def _kai_update_replenishment_from_vendor_bill(self):
-        """Crea o actualiza la tarifa compartida y dispara el precio de venta.
+        """Crea o actualiza la tarifa compartida.
 
-        No escribe ``standard_price``: la valuación FIFO queda intacta.
+        No escribe ``standard_price`` ni ``list_price``.
         """
         precision = self.env['decimal.precision'].precision_get('Product Price')
         Supplier = self.env['product.supplierinfo']
-        templates = self.env['product.template']
         for move in self:
             partner = move.commercial_partner_id
             invoice_date = move.invoice_date or move.date
@@ -41,12 +40,9 @@ class AccountMove(models.Model):
                     continue
                 chosen[line.product_id] = price
             for product, price in chosen.items():
-                seller = Supplier._kai_upsert_shared_seller(
+                Supplier._kai_upsert_shared_seller(
                     partner, product, price, company_currency, invoice_date,
                 )
-                if seller and seller._kai_is_shared_price_winner():
-                    templates |= product.product_tmpl_id
-        templates._kai_schedule_planned_price_update()
 
 
 class AccountMoveLine(models.Model):

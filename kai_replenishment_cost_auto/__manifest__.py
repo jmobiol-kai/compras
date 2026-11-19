@@ -6,19 +6,18 @@
     ),
     'description': """
 Al publicar una factura de proveedor, actualiza la tarifa compartida
-(product.supplierinfo sin compañía) con el precio neto de la línea y
-recalcula el precio de venta de los productos que usan ese insumo en una
-lista de materiales, si el precio planificado es «Por margen». El margen
-sale de la categoría (heredado del padre) salvo que el producto tenga
-margen propio.
+(product.supplierinfo sin compañía) con el precio neto de la línea.
+El costo de reposición de un fabricado sale de su lista de materiales.
 
-No modifica el costo contable (standard_price). La valuación FIFO queda
-como está.
+No escribe el precio de venta ni el costo contable. El margen de la
+categoría (heredado del padre, o el del producto si tiene margen propio)
+solo arma un precio sugerido de referencia.
 
+Inventario → Productos → Precio sugerido vs. actual.
 Compras → Productos → Productos con costo 0 sin compras.
 Contabilidad → Informes → Contribución marginal (también en Punto de venta).
 """,
-    'version': '19.0.1.1.0',
+    'version': '19.0.1.2.0',
     'category': 'Inventory/Purchase',
     'author': 'Kaizendo',
     'license': 'LGPL-3',
@@ -29,7 +28,6 @@ Contabilidad → Informes → Contribución marginal (también en Punto de venta
         'account',
         'product_replenishment_cost',
         'product_replenishment_cost_mrp',
-        'product_planned_price',
     ],
     'data': [
         'security/ir.model.access.csv',

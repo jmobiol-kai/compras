@@ -1,10 +1,11 @@
 Costo de reposición automático
 ==============================
 
-Módulo ``kai_replenishment_cost_auto`` (19.0.1.1.0, LGPL-3) para un grupo
+Módulo ``kai_replenishment_cost_auto`` (19.0.1.2.0, LGPL-3) para un grupo
 con empresa central y sucursales, mismo CUIT. El costo de reposición es uno
-solo para todo el grupo y sirve para formar el precio de venta. El costo
-contable (``standard_price``, FIFO en tiempo real) no se toca.
+solo para todo el grupo y sirve de referencia para el precio. El módulo no
+escribe el precio de venta (``list_price``) ni el costo contable
+(``standard_price``, FIFO en tiempo real).
 
 Depende de ``purchase``, ``mrp``, ``point_of_sale``, ``account`` y de los
 módulos de Adhoc en la rama 19.0 de ``ingadhoc/product``:
@@ -21,33 +22,29 @@ módulos de Adhoc en la rama 19.0 de ``ingadhoc/product``:
   posterior. Tipo «Basado en LdM». El costo es el roll-up de la lista de
   materiales (``bom.explode``), también sin almacenar. 19.0.1.0.0 no marca
   el campo como ``recursive``; este módulo sí, para que un lote de dos niveles
-  no devuelva 0 en el componente.
-* ``product_planned_price`` 19.0.1.0.0 o posterior. Con tipo «Por margen», el
-  precio planificado es
-  ``reposición de la compañía principal * (1 + margen%) + recargo``. El
-  cron copia ese valor a ``list_price``. Este módulo llama al mismo método
-  en el momento, sin esperar al cron.
+  no devuelva 0 en el componente. Esa es la cascada del costo: se lee, no
+  se graba.
 
-Margen por categoría
---------------------
+Margen de referencia y precio sugerido
+--------------------------------------
 
-El margen no se carga producto por producto. En la categoría hay
-«Definir margen», un margen % y un recargo. Si «Definir margen» está
-desmarcado, se heredan los de la categoría padre. En la raíz, sin definir,
-el margen es 0 y el recargo es 0.
+En la categoría hay «Definir margen», un margen % y un recargo. Si
+«Definir margen» está desmarcado, se heredan los de la categoría padre.
+En la raíz, sin definir, el margen es 0 y el recargo es 0.
 
-En el producto, «Margen propio» usa los campos de Precio planificado
-(``sale_margin`` y ``sale_surcharge``). Si está desmarcado, el precio «Por
-margen» usa el margen efectivo de la categoría. La fórmula no cambia:
-costo de reposición de la compañía principal (en este cliente, Blinis SA)
-× (1 + margen %) + recargo, más el IVA si el impuesto está incluido en el
-precio. Al publicar la factura de proveedor se recalculan los productos
-«Por margen» y los fabricados que los usan en una lista de materiales.
+En el producto, «Margen propio» usa el margen y el recargo cargados ahí.
+Si está desmarcado, el precio sugerido usa el margen efectivo de la
+categoría. La fórmula es el costo de reposición de la compañía principal
+(en este cliente, Blinis SA) × (1 + margen %) + recargo, más el IVA si el
+impuesto está incluido en el precio. En un fabricado ese costo ya es el
+roll-up de la lista de materiales.
 
-«Aplicar margen a productos», en la categoría, pasa a «Por margen» los
-productos de esa categoría y de las hijas que no tienen margen propio, y
-recalcula el precio. Inventario → Configuración → Productos → «Importar
-márgenes por categoría» carga líneas ``nombre completo;margen;recargo``.
+El precio sugerido y la diferencia contra el precio de venta (importe y %)
+no se almacenan: se calculan al abrir el formulario o la lista. Inventario
+→ Productos → «Precio sugerido vs. actual» se puede filtrar por categoría
+y exportar. Inventario → Configuración → Productos → «Importar márgenes
+por categoría» carga líneas ``nombre completo;margen;recargo`` y solo
+escribe la categoría.
 
 Decisiones
 ----------
@@ -71,7 +68,7 @@ Decisiones
 * Las líneas en 0, sin producto, de sección o de anticipo se ignoran.
 * Las notas de crédito de proveedor (``in_refund``) no actualizan la tarifa
   y no bajan el costo. Cancelar la factura o volverla a borrador tampoco
-  revierte el precio: la tarifa recuerda el último precio que se publicó.
+  revierte la tarifa: recuerda el último precio que se publicó.
 * Para el costo, la tarifa compartida gana sobre una tarifa de una sola
   sucursal. Si el producto estaba en «Manual» o «Precio del proveedor
   principal», pasa a «Último precio de proveedor». «Basado en LdM» no se
@@ -79,13 +76,9 @@ Decisiones
 * Sin ninguna tarifa con precio > 0, el costo de reposición (solo lectura)
   usa el ``standard_price`` de la compañía en curso. Adhoc no hace ese
   reemplazo: deja el costo en 0.
-* Al cambiar el costo de un insumo se recorren las listas de materiales
-  hacia arriba, en todos los niveles, con un conjunto de ya visitados para
-  cortar ciclos. Si el producto (o alguno que lo usa) tiene precio planificado
-  «Por margen», se copia ``computed_list_price`` a ``list_price`` con el
-  método de Adhoc. El roll-up se resuelve al leer el costo, que no está
-  almacenado. Si ``queue_job`` está instalado, ese recálculo entra en un
-  job; si no, corre en la misma transacción. No es dependencia del módulo.
+* El roll-up de una lista de materiales se resuelve al leer el costo de
+  reposición del fabricado. El módulo no recorre la LdM para escribir
+  precios.
 * El cron de Adhoc «Update Cost from Replenishment Cost» copia el costo de
   reposición al costo contable. Con FIFO en tiempo real tiene que seguir
   desactivado. Este módulo no lo dispara.
@@ -154,8 +147,9 @@ Con el módulo ya instalado:
 Cubren: actualización de una tarifa existente al publicar la factura
 (unidad docena, descuento, contacto hijo, línea en 0, nota de crédito y
 vuelta a borrador sin revertir, factura más vieja que no pisa), roll-up de
-LdM de dos niveles con recálculo de ``list_price`` y ``standard_price``
-intacto, el listado de costo 0, y el reporte (factura con CMV, POS no
+LdM de dos niveles (el costo sube y el ``list_price`` queda igual),
+``standard_price`` intacto, precio sugerido con margen heredado y con
+margen propio, el listado de costo 0, y el reporte (factura con CMV, POS no
 facturado, POS facturado que no se duplica, reembolso de POS).
 
 Limitaciones
@@ -165,9 +159,10 @@ Limitaciones
   mayor o igual a la tarifa de ese proveedor.
 * Un producto «Basado en LdM» que además se compra no toma el precio de la
   factura como costo. El roll-up sigue mandando.
-* El precio de venta planificado usa el costo de la compañía principal y la
-  lista de materiales que ``_bom_find`` elige para esa compañía. Es el
-  comportamiento de Adhoc.
+* El precio sugerido usa el costo de reposición de la compañía principal y,
+  en un fabricado, la lista de materiales que ``_bom_find`` elige para esa
+  compañía. No reemplaza al precio de venta. Las listas de precios se arman
+  sobre ese precio de venta, cargado a mano.
 * El costo de reposición vive en la plantilla. En un producto con variantes,
   la tarifa es por variante, pero el último precio de cualquier variante
   puede definir el costo de toda la plantilla.

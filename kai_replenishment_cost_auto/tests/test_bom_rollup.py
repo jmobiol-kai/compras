@@ -12,25 +12,16 @@ class TestBomRollup(KaiReplenishmentCommon):
             'Masa',
             standard_price=4.0,
             list_price=3.0,
-            list_price_type='manual',
             replenishment_cost_type='last_supplier_price',
         )
         semi = self._goods(
             'Disco',
-            list_price=1.0,
-            list_price_type='by_margin',
-            kai_own_margin=True,
-            sale_margin=25.0,
-            sale_surcharge=10.0,
+            list_price=11.0,
             replenishment_cost_type='bom',
         )
         finished = self._goods(
             'Empanada',
-            list_price=1.0,
-            list_price_type='by_margin',
-            kai_own_margin=True,
-            sale_margin=25.0,
-            sale_surcharge=10.0,
+            list_price=12.0,
             replenishment_cost_type='bom',
         )
         seller = self._shared_seller(component, self.partner_a, 5.0)
@@ -60,12 +51,6 @@ class TestBomRollup(KaiReplenishmentCommon):
             })],
         })
 
-        parents = component.product_tmpl_id._kai_bom_parent_templates()
-        self.assertEqual(
-            set(parents.ids),
-            {semi.product_tmpl_id.id, finished.product_tmpl_id.id},
-        )
-
         bill = self._vendor_bill(self.partner_a, [{
             'product': component,
             'price_unit': 100.0,
@@ -78,11 +63,11 @@ class TestBomRollup(KaiReplenishmentCommon):
         self.assertAlmostEqual(seller.price, 100.0, places=2)
         self.assertAlmostEqual(component.standard_price, 4.0, places=2)
         self.assertAlmostEqual(component.list_price, 3.0, places=2)
+        self.assertAlmostEqual(semi.list_price, 11.0, places=2)
+        self.assertAlmostEqual(finished.list_price, 12.0, places=2)
         self.assertEqual(semi.replenishment_cost_type, 'bom')
         self.assertEqual(finished.replenishment_cost_type, 'bom')
-        # Disco = 2 x 100. Empanada = 3 x disco. Margen 25% + recargo 10.
+        # Disco = 2 x 100. Empanada = 3 x disco. El precio de venta no se toca.
         self.assertAlmostEqual(component.replenishment_cost, 100.0, places=2)
         self.assertAlmostEqual(semi.replenishment_cost, 200.0, places=2)
         self.assertAlmostEqual(finished.replenishment_cost, 600.0, places=2)
-        self.assertAlmostEqual(semi.list_price, 260.0, places=2)
-        self.assertAlmostEqual(finished.list_price, 760.0, places=2)

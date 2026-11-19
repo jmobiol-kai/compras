@@ -57,55 +57,6 @@ class ProductCategory(models.Model):
                 category.kai_effective_margin_percent = category.parent_id.kai_effective_margin_percent
                 category.kai_effective_surcharge = category.parent_id.kai_effective_surcharge
 
-    def write(self, vals):
-        res = super().write(vals)
-        watched = {'kai_margin_defined', 'kai_margin_percent', 'kai_surcharge', 'parent_id'}
-        if watched.intersection(vals):
-            self._kai_reprice_products_using_category_margin()
-        return res
-
-    def _kai_reprice_products_using_category_margin(self):
-        """Recalcula el precio de venta de quienes usan este margen.
-
-        Incluye las hijas que heredan y los fabricados (LdM) que ya están
-        en «Por margen». No toca productos con margen propio.
-        """
-        categories = self.search([('id', 'child_of', self.ids)])
-        products = self.env['product.template'].search([
-            ('categ_id', 'in', categories.ids),
-            ('list_price_type', '=', 'by_margin'),
-            ('kai_own_margin', '=', False),
-        ])
-        products._kai_update_planned_prices_from_replenishment()
-        return products
-
-    def action_kai_apply_margin(self):
-        """Pasa a «Por margen» los productos sin override y recalcula el precio."""
-        products = self._kai_apply_margin_to_products()
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {
-                'title': _('Margen aplicado'),
-                'message': _('Se actualizaron %s productos.', len(products)),
-                'type': 'success',
-                'sticky': False,
-            },
-        }
-
-    def _kai_apply_margin_to_products(self):
-        categories = self.search([('id', 'child_of', self.ids)])
-        products = self.env['product.template'].search([
-            ('categ_id', 'in', categories.ids),
-            ('kai_own_margin', '=', False),
-        ])
-        to_switch = products.filtered(lambda product: product.list_price_type != 'by_margin')
-        if to_switch:
-            to_switch.write({'list_price_type': 'by_margin'})
-        products._kai_update_planned_prices_from_replenishment()
-        return products
-
-
 class KaiCategoryMarginImport(models.TransientModel):
     _name = 'kai.category.margin.import'
     _description = 'Importar márgenes por categoría'
@@ -121,20 +72,10 @@ class KaiCategoryMarginImport(models.TransientModel):
             'Las líneas vacías y las que empiezan con # se ignoran.'
         ),
     )
-    apply_to_products = fields.Boolean(
-        string='Aplicar a los productos sin margen propio',
-        default=True,
-        help=(
-            'Pasa a «Por margen» los productos de esas categorías y de sus '
-            'hijas que no tienen margen propio, y recalcula el precio de venta.'
-        ),
-    )
 
     def action_import(self):
         rows = self._kai_parse_rows()
-        Category = self.env['product.category']
         missing = []
-        found = Category.browse()
         for name, margin, surcharge in rows:
             category = self._kai_find_category(name)
             if not category:
@@ -145,14 +86,11 @@ class KaiCategoryMarginImport(models.TransientModel):
                 'kai_margin_percent': margin,
                 'kai_surcharge': surcharge,
             })
-            found |= category
         if missing:
             raise UserError(_(
                 'No se encontró una sola categoría para: %s',
                 ', '.join(missing),
             ))
-        if self.apply_to_products and found:
-            found._kai_apply_margin_to_products()
         return {'type': 'ir.actions.act_window_close'}
 
     def _kai_parse_rows(self):
