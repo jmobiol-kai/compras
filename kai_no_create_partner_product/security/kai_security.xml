@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="privilege_kai_create_partner_product" model="res.groups.privilege">
+        <field name="name">Puede crear productos y contactos en cualquier pantalla</field>
+        <field name="description">Permite crear contactos y productos desde cualquier pantalla, no solo desde Inventario y Contactos.</field>
+        <field name="category_id" ref="base.module_category_hidden"/>
+    </record>
+
+    <record id="group_kai_allow_create_partner_product" model="res.groups">
+        <field name="name">Puede crear productos y contactos en cualquier pantalla</field>
+        <field name="comment">El usuario puede crear contactos y productos desde cualquier pantalla. Sin este permiso, solo puede crearlos en Inventario y en Contactos.</field>
+        <field name="privilege_id" ref="privilege_kai_create_partner_product"/>
+        <field name="implied_by_ids" eval="[Command.link(ref('base.group_system'))]"/>
+    </record>
+</odoo>

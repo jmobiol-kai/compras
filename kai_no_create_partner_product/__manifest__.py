@@ -1,16 +1,16 @@
 {
-    'name': 'No crear contactos ni productos desde cotizaciones',
+    'name': 'No crear contactos ni productos fuera de Inventario y Contactos',
     'summary': (
-        'Casilla en el usuario para impedir crear contactos y productos '
-        'desde cotizaciones, facturas y recibos de compra y de venta'
+        'Impide crear contactos y productos desde otras pantallas. '
+        'Sigue permitido en Inventario, en Contactos y para quien tenga el permiso.'
     ),
-    'version': '19.0.1.0.2',
-    'category': 'Sales',
+    'version': '19.0.1.1.0',
+    'category': 'Technical',
     'author': 'Kaizendo',
     'license': 'LGPL-3',
     'depends': ['sale', 'purchase', 'account'],
     'data': [
-        'views/res_users_views.xml',
+        'security/kai_security.xml',
     ],
     'installable': True,
     'application': False,
