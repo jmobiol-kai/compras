@@ -201,8 +201,6 @@ class TestEstimatedCogs(KaiReplenishmentCommon):
         self.assertFalse(report.cost_origin)
 
     def test_credit_note_with_stock_return_subtracts_estimated_cogs(self):
-        if 'sale.order' not in self.env or 'sale_line_id' not in self.env['stock.move']._fields:
-            self.skipTest('sale_stock no está instalado')
         product = self._storable('Devolución con nota')
         self._history(product, date(2026, 5, 1), 15.0)
         # El usuario del test no tiene grupo de Ventas.
@@ -226,8 +224,14 @@ class TestEstimatedCogs(KaiReplenishmentCommon):
             active_model='stock.picking',
         )
         wizard = Return.create({'picking_id': picking.id})
-        if hasattr(wizard, '_onchange_picking_id'):
-            wizard._onchange_picking_id()
+        # En Odoo 19 las líneas nacen con cantidad 0. Hay que cargarla.
+        for line in wizard.product_return_moves:
+            source = line.move_id
+            line.quantity = source.quantity or source.product_uom_qty or 1.0
+        self.assertTrue(
+            any(line.quantity for line in wizard.product_return_moves),
+            'El asistente de devolución no tiene cantidades.',
+        )
         action = wizard.action_create_returns()
         return_picking = self.env['stock.picking'].sudo().browse(action['res_id'])
         self._validate_picking(return_picking)
@@ -333,11 +337,23 @@ class TestEstimatedCogs(KaiReplenishmentCommon):
         self.assertAlmostEqual(report.cogs_estimated, 10.0, places=2)
 
     def test_branch_sale_uses_main_company_bom_not_branch_standard_price(self):
-        branch_data = getattr(self, 'company_data_2', None)
-        if not branch_data:
-            self.skipTest('La base de test no tiene una segunda compañía.')
-        branch = branch_data['company']
-        branch.sudo().parent_id = self.env.company
+        main = self.env.company
+        # El plan de la compañía de test es generic_coa. Sin fijarlo, el alta
+        # de la sucursal adivina otro plan y se salta el test.
+        test_class = type(self)
+        previous_chart = test_class.chart_template
+        test_class.chart_template = main.chart_template or 'generic_coa'
+        try:
+            branch = self._create_company(
+                name='Sucursal Kai',
+                parent_id=main.id,
+                country_id=main.country_id.id,
+                currency_id=main.currency_id.id,
+            )
+        finally:
+            test_class.chart_template = previous_chart
+        self.assertEqual(branch.parent_id, main)
+        branch_data = self.collect_company_accounting_data(branch)
         component = self._storable(
             'Insumo central',
             replenishment_cost_type='last_supplier_price',

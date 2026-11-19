@@ -1,7 +1,7 @@
 Costo de reposición automático
 ==============================
 
-Módulo ``kai_replenishment_cost_auto`` (19.0.1.4.3, LGPL-3) para un grupo
+Módulo ``kai_replenishment_cost_auto`` (19.0.1.4.4, LGPL-3) para un grupo
 con empresa central y sucursales, mismo CUIT. El costo de reposición es uno
 solo para todo el grupo y sirve de referencia para el precio. El módulo no
 escribe el precio de venta (``list_price``) ni el costo contable
