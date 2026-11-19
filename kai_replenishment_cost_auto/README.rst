@@ -1,7 +1,7 @@
 Costo de reposición automático
 ==============================
 
-Módulo ``kai_replenishment_cost_auto`` (19.0.1.4.0, LGPL-3) para un grupo
+Módulo ``kai_replenishment_cost_auto`` (19.0.1.4.1, LGPL-3) para un grupo
 con empresa central y sucursales, mismo CUIT. El costo de reposición es uno
 solo para todo el grupo y sirve de referencia para el precio. El módulo no
 escribe el precio de venta (``list_price``) ni el costo contable
@@ -78,11 +78,14 @@ Ventas anteriores a la valuación en tiempo real no tienen líneas de CMV:
 el informe las mostraba con CMV 0 y contribución 100 %. Para cada línea
 de factura de cliente o de POS no facturado, si el producto es almacenable
 y no hay CMV contable (en el POS, ``total_cost`` en cero), se estima
-cantidad en la unidad del producto, con signo negativo en la nota de
-crédito, por un costo a la fecha de la venta. El orden es: último
-historial vigente con fecha anterior o igual, si no el primer historial
-posterior, si no la lista de materiales (cada insumo con la misma regla),
-si no la tarifa compartida y si no el costo contable. Servicios y
+cantidad en la unidad del producto por un costo a la fecha de la venta.
+Una nota de crédito resta solo si tiene una devolución de stock hecha;
+un reembolso de precio, sin retorno, no mueve el CMV estimado. En un
+producto comprado el orden es: historial vigente anterior o igual, si no
+el primer historial posterior, si no la tarifa compartida y si no el
+costo contable. En un fabricado, entre el historial anterior y el
+posterior se usa la lista de materiales a esa fecha (cada insumo con la
+misma regla), para no tomar un roll-up posterior incompleto. Servicios y
 consumibles no valuados quedan en cero. No se crean asientos.
 
 El informe muestra el CMV contable, el estimado, el total y la

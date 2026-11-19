@@ -60,6 +60,7 @@ class ProductSupplierinfo(models.Model):
             (price_dt, seller.id),
         )
         seller.invalidate_recordset(['last_date_price_updated'])
+        self.env['kai.replenishment.cost.history']._kai_invalidate_cost_cache(product)
         return seller
 
     def _kai_shared_seller_for(self, partner, product):

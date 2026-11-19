@@ -62,6 +62,53 @@ class KaiReplenishmentCostHistory(models.Model):
             """
         )
 
+    def _kai_invalidate_cost_cache(self, products):
+        """Tira la caché de la tarifa y del costo en todos los entornos del cursor.
+
+        ``seller_ids`` y ``net_price`` quedan viejos si se leyeron antes de
+        crear o actualizar la tarifa. Sin esto el costo nuevo repite el
+        anterior (o queda en 0) aunque la tarifa ya se haya escrito.
+        """
+        products = self.env['product.product'].browse(products.ids)
+        if not products:
+            return
+        templates = products.product_tmpl_id
+        sellers = self.env['product.supplierinfo'].sudo().search([
+            ('product_tmpl_id', 'in', templates.ids),
+        ])
+        seller_fields = [
+            name for name in (
+                'net_price', 'price', 'discount', 'currency_id',
+                'last_date_price_updated', 'product_uom_id', 'company_id',
+            )
+            if name in sellers._fields
+        ]
+        template_fields = [
+            name for name in (
+                'seller_ids', 'replenishment_cost', 'supplier_price',
+                'supplier_currency_id', 'replenishment_base_cost_on_currency',
+                'supplier_uom_id',
+            )
+            if name in templates._fields
+        ]
+        product_fields = [
+            name for name in ('replenishment_cost', 'seller_ids', 'variant_seller_ids')
+            if name in products._fields
+        ]
+        targets = []
+        envs = getattr(self.env.transaction, 'envs', None)
+        if envs:
+            targets = list(envs)
+        if self.env not in targets:
+            targets.append(self.env)
+        for env in targets:
+            if sellers and seller_fields:
+                env['product.supplierinfo'].browse(sellers.ids).invalidate_recordset(seller_fields)
+            if template_fields:
+                env['product.template'].browse(templates.ids).invalidate_recordset(template_fields)
+            if product_fields:
+                env['product.product'].browse(products.ids).invalidate_recordset(product_fields)
+
     def _kai_cost_in_main_currency(self, product, main, date):
         """Costo de reposición de un solo producto, en la moneda principal.
 
@@ -69,14 +116,10 @@ class KaiReplenishmentCostHistory(models.Model):
         lote, Adhoc devuelve 0 para el componente que todavía se está
         calculando y la cascada no ve el cambio.
         """
+        self.env['product.supplierinfo'].flush_model()
+        self._kai_invalidate_cost_cache(product)
         product = self.env['product.product'].browse(product.id).sudo().with_company(main)
         product = product.with_prefetch(product._ids)
-        template = product.product_tmpl_id.with_prefetch(product.product_tmpl_id._ids)
-        template.invalidate_recordset([
-            'replenishment_cost', 'supplier_price', 'supplier_currency_id',
-            'replenishment_base_cost_on_currency',
-        ])
-        product.invalidate_recordset(['replenishment_cost'])
         cost = product.replenishment_cost or 0.0
         currency = product.currency_id
         target = main.currency_id
@@ -136,7 +179,11 @@ class KaiReplenishmentCostHistory(models.Model):
             main.currency_id,
             date,
         )
+        # El costo anterior ya quedó leído. El nuevo se lee ahora, con la
+        # tarifa escrita y la caché vaciada.
         self.env['product.supplierinfo'].flush_model()
+        product.product_tmpl_id.flush_recordset()
+        self._kai_invalidate_cost_cache(product)
         new_cost = self._kai_cost_in_main_currency(product, main, date)
         variation, percent = self._kai_variation(previous_cost, new_cost)
         rows = [dict(
@@ -148,8 +195,11 @@ class KaiReplenishmentCostHistory(models.Model):
             variation_percent=percent,
         )]
         if parents and float_compare(new_cost, previous_cost, precision_digits=6) != 0:
-            previous_running = dict(base_costs, **{product.id: previous_cost})
-            new_running = dict(base_costs, **{product.id: new_cost})
+            # La clave es el id (int). dict(..., **{id: valor}) exige strings.
+            previous_running = dict(base_costs)
+            previous_running[product.id] = previous_cost
+            new_running = dict(base_costs)
+            new_running[product.id] = new_cost
             for parent in parents:
                 parent_prev = self._kai_simulated_bom_cost(parent, previous_running)
                 parent_new = self._kai_simulated_bom_cost(parent, new_running)

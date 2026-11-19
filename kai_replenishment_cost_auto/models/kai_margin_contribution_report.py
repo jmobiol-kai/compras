@@ -11,10 +11,10 @@ class KaiMarginContributionReport(models.Model):
     contra existencias no se suma: las dos líneas se netean.
 
     Si el producto es almacenable y esa venta no tiene CMV contable, se
-    estima cantidad (en la unidad del producto, con signo de la nota de
-    crédito) por un costo unitario a la fecha: último historial vigente,
-    si no el primero posterior, si no el roll-up de la lista de materiales,
-    si no la tarifa compartida y si no el costo contable. No se crean asientos.
+    estima cantidad en la unidad del producto por un costo a la fecha.
+    La nota de crédito resta solo cuando hay una devolución de stock.
+    En un fabricado, la lista de materiales a esa fecha se usa antes que
+    un historial posterior. No se crean asientos.
 
     POS no facturado: ``price_subtotal`` y ``total_cost`` de la línea, pasados
     a moneda de la compañía con ``currency_rate``. El pedido facturado
@@ -156,18 +156,8 @@ BEGIN
         RETURN;
     END IF;
 
-    SELECT h.cost_new INTO v_cost
-      FROM kai_replenishment_cost_history h
-     WHERE h.product_id = p_product_id
-       AND h.state = 'posted'
-       AND h.date > p_date
-     ORDER BY h.date ASC, h.id ASC
-     LIMIT 1;
-    IF v_cost IS NOT NULL THEN
-        RETURN QUERY SELECT v_cost, 'history_after'::varchar;
-        RETURN;
-    END IF;
-
+    -- Fabricado: la LdM a la fecha gana sobre un historial posterior
+    -- (ese historial suele ser un roll-up parcial, no el costo de entonces).
     IF v_type = 'bom' AND p_depth < 8 THEN
         SELECT b.id, b.product_qty, b.product_uom_id
           INTO v_bom_id, v_bom_qty, v_bom_uom
@@ -212,6 +202,18 @@ BEGIN
                 RETURN;
             END IF;
         END IF;
+    END IF;
+
+    SELECT h.cost_new INTO v_cost
+      FROM kai_replenishment_cost_history h
+     WHERE h.product_id = p_product_id
+       AND h.state = 'posted'
+       AND h.date > p_date
+     ORDER BY h.date ASC, h.id ASC
+     LIMIT 1;
+    IF v_cost IS NOT NULL THEN
+        RETURN QUERY SELECT v_cost, 'history_after'::varchar;
+        RETURN;
     END IF;
 
     SELECT si.price * (1 - COALESCE(si.discount, 0) / 100.0), si.currency_id
@@ -300,8 +302,43 @@ END;
 $$ LANGUAGE plpgsql STABLE;
 """
 
+    def _out_refund_qty_sign_sql(self):
+        """Signo de la cantidad estimada en una factura o nota de crédito.
+
+        La nota de crédito resta solo si tiene una devolución de stock hecha
+        (movimiento de retorno vinculado a la línea de venta). Un reembolso
+        de precio, sin devolución, no mueve el CMV estimado.
+        """
+        move = self.env.get('stock.move')
+        if (
+            move is None
+            or 'sale_line_id' not in move._fields
+            or 'origin_returned_move_id' not in move._fields
+        ):
+            has_return = 'FALSE'
+        else:
+            has_return = """
+                EXISTS (
+                    SELECT 1
+                    FROM sale_order_line_invoice_rel rel
+                    JOIN stock_move return_move ON return_move.sale_line_id = rel.order_line_id
+                    LEFT JOIN stock_picking return_picking ON return_picking.id = return_move.picking_id
+                    WHERE rel.invoice_line_id = line.id
+                      AND return_move.state = 'done'
+                      AND (
+                          return_move.origin_returned_move_id IS NOT NULL
+                          OR return_picking.return_id IS NOT NULL
+                      )
+                )
+            """
+        return (
+            "CASE WHEN move.move_type = 'out_refund' AND ("
+            + has_return
+            + ") THEN -1 WHEN move.move_type = 'out_refund' THEN 0 ELSE 1 END"
+        )
+
     def _query(self):
-        return """
+        query = """
             WITH main_company AS (
                 SELECT company.id AS id, company.currency_id AS currency_id
                 FROM ir_model_data data
@@ -344,6 +381,7 @@ $$ LANGUAGE plpgsql STABLE;
                     0::numeric AS cogs_amount,
                     CASE
                         WHEN NOT COALESCE(template.is_storable, FALSE)
+                             OR (__KAI_QTY_SIGN__) = 0
                              OR EXISTS (
                                  SELECT 1
                                  FROM account_move_line cogs
@@ -356,7 +394,7 @@ $$ LANGUAGE plpgsql STABLE;
                              )
                         THEN 0
                         ELSE
-                            (CASE WHEN move.move_type = 'out_refund' THEN -1 ELSE 1 END)
+                            (__KAI_QTY_SIGN__)
                             * line.quantity
                             * COALESCE(line_uom.factor, 1)
                             / COALESCE(NULLIF(product_uom.factor, 0), 1)
@@ -379,6 +417,7 @@ $$ LANGUAGE plpgsql STABLE;
                     END AS cogs_estimated,
                     CASE
                         WHEN NOT COALESCE(template.is_storable, FALSE)
+                             OR (__KAI_QTY_SIGN__) = 0
                              OR EXISTS (
                                  SELECT 1
                                  FROM account_move_line cogs
@@ -536,3 +575,4 @@ $$ LANGUAGE plpgsql STABLE;
                 src.month_date,
                 src.cost_origin
         """
+        return query.replace('__KAI_QTY_SIGN__', self._out_refund_qty_sign_sql())
