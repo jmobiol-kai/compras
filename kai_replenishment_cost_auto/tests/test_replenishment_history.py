@@ -84,6 +84,9 @@ class TestReplenishmentHistory(KaiReplenishmentCommon):
             'price_unit': 50.0,
         }])
         bill.action_post()
+        component_rows = self._rows(component)
+        self.assertEqual(len(component_rows), 1)
+        self.assertAlmostEqual(component_rows.cost_new, 50.0, places=2)
         parent_rows = self._rows(finished, origin='bom')
         self.assertEqual(len(parent_rows), 1)
         self.assertEqual(parent_rows.source_product_id, component)

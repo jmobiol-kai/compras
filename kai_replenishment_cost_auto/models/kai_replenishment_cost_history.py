@@ -54,12 +54,29 @@ class KaiReplenishmentCostHistory(models.Model):
         string='Estado', required=True, default='posted', index=True,
     )
 
+    def init(self):
+        self.env.cr.execute(
+            """
+            CREATE INDEX IF NOT EXISTS kai_repl_cost_history_product_state_date_idx
+            ON kai_replenishment_cost_history (product_id, state, date DESC, id DESC)
+            """
+        )
+
     def _kai_cost_in_main_currency(self, product, main, date):
-        """Costo de reposición leído en la compañía principal, en su moneda."""
-        product = product.sudo().with_company(main)
-        product.product_tmpl_id.invalidate_recordset([
+        """Costo de reposición de un solo producto, en la moneda principal.
+
+        El prefetch queda en ese producto. Si el fabricado entra en el mismo
+        lote, Adhoc devuelve 0 para el componente que todavía se está
+        calculando y la cascada no ve el cambio.
+        """
+        product = self.env['product.product'].browse(product.id).sudo().with_company(main)
+        product = product.with_prefetch(product._ids)
+        template = product.product_tmpl_id.with_prefetch(product.product_tmpl_id._ids)
+        template.invalidate_recordset([
             'replenishment_cost', 'supplier_price', 'supplier_currency_id',
+            'replenishment_base_cost_on_currency',
         ])
+        product.invalidate_recordset(['replenishment_cost'])
         cost = product.replenishment_cost or 0.0
         currency = product.currency_id
         target = main.currency_id
@@ -104,12 +121,14 @@ class KaiReplenishmentCostHistory(models.Model):
         product = line.product_id
         main = self.env['res.company']._get_main_company()
         date = move.invoice_date or move.date
-        parents = product.product_tmpl_id._kai_bom_parent_products()
-        watched = product | parents
-        previous = {
-            item.id: self._kai_cost_in_main_currency(item, main, date)
-            for item in watched
-        }
+        parents = list(product.product_tmpl_id._kai_bom_parent_products())
+        previous_cost = self._kai_cost_in_main_currency(product, main, date)
+        # No se lee el costo del fabricado acá: si entra en el mismo lote que
+        # el insumo, Adhoc devuelve 0 y la fila de LdM no se crea. El roll-up
+        # usa el costo del insumo (anterior y nuevo) y el del resto de hojas.
+        base_costs = {}
+        for parent in parents:
+            self._kai_seed_bom_leaves(parent, base_costs, main, date, {product.id})
         self.env['product.supplierinfo']._kai_upsert_shared_seller(
             move.commercial_partner_id,
             product,
@@ -117,34 +136,58 @@ class KaiReplenishmentCostHistory(models.Model):
             main.currency_id,
             date,
         )
-        watched.product_tmpl_id.invalidate_recordset()
+        self.env['product.supplierinfo'].flush_model()
         new_cost = self._kai_cost_in_main_currency(product, main, date)
-        variation, percent = self._kai_variation(previous[product.id], new_cost)
+        variation, percent = self._kai_variation(previous_cost, new_cost)
         rows = [dict(
             self._kai_prepare_common(product, main, date, move, line, 'bill'),
             price_unit=price_main,
-            cost_previous=previous[product.id],
+            cost_previous=previous_cost,
             cost_new=new_cost,
             variation_amount=variation,
             variation_percent=percent,
         )]
-        if float_compare(new_cost, previous[product.id], precision_digits=6) != 0:
+        if parents and float_compare(new_cost, previous_cost, precision_digits=6) != 0:
+            previous_running = dict(base_costs, **{product.id: previous_cost})
+            new_running = dict(base_costs, **{product.id: new_cost})
             for parent in parents:
-                parent_new = self._kai_cost_in_main_currency(parent, main, date)
-                if float_compare(parent_new, previous[parent.id], precision_digits=6) == 0:
+                parent_prev = self._kai_simulated_bom_cost(parent, previous_running)
+                parent_new = self._kai_simulated_bom_cost(parent, new_running)
+                if float_compare(parent_new, parent_prev, precision_digits=6) == 0:
                     continue
-                parent_var, parent_pct = self._kai_variation(previous[parent.id], parent_new)
+                parent_var, parent_pct = self._kai_variation(parent_prev, parent_new)
                 rows.append(dict(
                     self._kai_prepare_common(
                         parent, main, date, move, line, 'bom', source=product,
                     ),
                     price_unit=price_main,
-                    cost_previous=previous[parent.id],
+                    cost_previous=parent_prev,
                     cost_new=parent_new,
                     variation_amount=parent_var,
                     variation_percent=parent_pct,
                 ))
         return self.create(rows)
+
+    def _kai_seed_bom_leaves(self, product, running, main, date, skip_ids, seen=None):
+        """Costos actuales de los insumos que esta factura no está cambiando."""
+        template = product.product_tmpl_id
+        seen = set(seen or ())
+        if template.id in seen:
+            return
+        if template.replenishment_cost_type != 'bom':
+            if product.id not in skip_ids and product.id not in running:
+                running[product.id] = self._kai_cost_in_main_currency(product, main, date)
+            return
+        seen.add(template.id)
+        bom = self.env['mrp.bom'].sudo()._bom_find(product)[product]
+        if not bom:
+            if product.id not in skip_ids and product.id not in running:
+                running[product.id] = self._kai_cost_in_main_currency(product, main, date)
+            return
+        for bom_line in bom.bom_line_ids:
+            self._kai_seed_bom_leaves(
+                bom_line.product_id, running, main, date, skip_ids, seen,
+            )
 
     def _kai_void_for_moves(self, moves):
         """Marca anuladas las filas de esas facturas. No toca la tarifa ni el costo."""

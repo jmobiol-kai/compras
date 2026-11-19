@@ -87,6 +87,9 @@ class TestMarginReport(KaiReplenishmentCommon):
         # El POS facturado (80 / 30) no se suma.
         self.assertAlmostEqual(report.sales_amount, 140.0, places=2)
         self.assertAlmostEqual(report.cogs_amount, 56.0, places=2)
+        self.assertAlmostEqual(report.cogs_estimated, 0.0, places=2)
+        self.assertAlmostEqual(report.cogs_total, 56.0, places=2)
+        self.assertFalse(report.has_estimated_cogs)
         self.assertAlmostEqual(report.margin_amount, 84.0, places=2)
         self.assertAlmostEqual(report.margin_percent, 60.0, places=2)
 

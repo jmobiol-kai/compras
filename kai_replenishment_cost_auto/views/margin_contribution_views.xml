@@ -10,9 +10,13 @@
                 <field name="product_id"/>
                 <field name="categ_id" optional="hide"/>
                 <field name="sales_amount" sum="Ventas netas"/>
-                <field name="cogs_amount" sum="CMV"/>
+                <field name="cogs_amount" sum="CMV contable" optional="show"/>
+                <field name="cogs_estimated" sum="CMV estimado" optional="show"/>
+                <field name="cogs_total" sum="CMV total"/>
                 <field name="margin_amount" sum="Contribución"/>
                 <field name="margin_percent"/>
+                <field name="cost_origin" optional="show"/>
+                <field name="has_estimated_cogs" optional="hide"/>
                 <field name="currency_id" column_invisible="1"/>
             </list>
         </field>
@@ -27,7 +31,7 @@
                 <field name="product_id" type="row"/>
                 <field name="company_id" type="col"/>
                 <field name="sales_amount" type="measure"/>
-                <field name="cogs_amount" type="measure"/>
+                <field name="cogs_total" type="measure"/>
                 <field name="margin_amount" type="measure"/>
                 <field name="margin_percent" type="measure"/>
             </pivot>
@@ -54,12 +58,18 @@
                 <field name="product_id"/>
                 <field name="company_id" groups="base.group_multi_company"/>
                 <field name="categ_id"/>
-                <filter name="filter_date" string="Mes" date="date"/>
+                <field name="cost_origin"/>
+                <filter name="with_estimated" string="Con CMV estimado" domain="[('has_estimated_cogs', '=', True)]"/>
+                <separator/>
+                <filter name="this_month" string="Este mes" domain="[('date', '&gt;=', (context_today() + relativedelta(day=1)).strftime('%Y-%m-%d')), ('date', '&lt;', (context_today() + relativedelta(months=1, day=1)).strftime('%Y-%m-%d'))]"/>
+                <filter name="last_month" string="Mes anterior" domain="[('date', '&gt;=', (context_today() + relativedelta(months=-1, day=1)).strftime('%Y-%m-%d')), ('date', '&lt;', (context_today() + relativedelta(day=1)).strftime('%Y-%m-%d'))]"/>
+                <filter name="filter_date" string="Fecha" date="date"/>
                 <group>
                     <filter name="group_company" string="Compañía" context="{'group_by': 'company_id'}"/>
                     <filter name="group_product" string="Producto" context="{'group_by': 'product_id'}"/>
                     <filter name="group_categ" string="Categoría" context="{'group_by': 'categ_id'}"/>
                     <filter name="group_month" string="Mes" context="{'group_by': 'date:month'}"/>
+                    <filter name="group_origin" string="Origen del costo" context="{'group_by': 'cost_origin'}"/>
                 </group>
             </search>
         </field>
@@ -70,11 +80,13 @@
         <field name="res_model">kai.margin.contribution.report</field>
         <field name="view_mode">pivot,graph,list</field>
         <field name="search_view_id" ref="view_kai_margin_contribution_search"/>
+        <field name="context">{'search_default_group_company': 1}</field>
         <field name="help" type="html">
             <p>
                 Ventas netas, CMV y contribución por compañía, producto y mes.
-                Incluye facturas de cliente (y su CMV FIFO en las líneas de
-                costo de venta) y pedidos de POS que no están facturados.
+                El CMV total suma el contable (FIFO) y, si la venta no lo
+                tiene, un CMV estimado a la fecha. No se generan asientos.
+                Incluye facturas de cliente y pedidos de POS no facturados.
             </p>
         </field>
     </record>

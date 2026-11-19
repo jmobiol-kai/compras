@@ -19,7 +19,6 @@ msgstr ""
 #. module: kai_replenishment_cost_auto
 #: model:ir.actions.act_window,name:kai_replenishment_cost_auto.action_kai_margin_contribution
 #: model:ir.model,name:kai_replenishment_cost_auto.model_kai_margin_contribution_report
-#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_margin_contribution_report__margin_amount
 #: model:ir.ui.menu,name:kai_replenishment_cost_auto.menu_kai_margin_contribution_account
 #: model:ir.ui.menu,name:kai_replenishment_cost_auto.menu_kai_margin_contribution_pos
 msgid "Contribución marginal"
@@ -193,6 +192,7 @@ msgstr "Factura"
 
 #. module: kai_replenishment_cost_auto
 #: model:ir.model.fields.selection,name:kai_replenishment_cost_auto.selection__kai_replenishment_cost_history__origin__bom
+#: model:ir.model.fields.selection,name:kai_replenishment_cost_auto.selection__kai_margin_contribution_report__cost_origin__bom
 msgid "LdM"
 msgstr "LdM"
 
@@ -253,8 +253,53 @@ msgstr "Ventas netas"
 
 #. module: kai_replenishment_cost_auto
 #: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_margin_contribution_report__cogs_amount
-msgid "CMV"
-msgstr "CMV"
+msgid "CMV contable"
+msgstr "CMV contable"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_margin_contribution_report__cogs_estimated
+msgid "CMV estimado"
+msgstr "CMV estimado"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_margin_contribution_report__cogs_total
+msgid "CMV total"
+msgstr "CMV total"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_margin_contribution_report__margin_amount
+msgid "Contribución"
+msgstr "Contribución"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_margin_contribution_report__has_estimated_cogs
+msgid "Con CMV estimado"
+msgstr "Con CMV estimado"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_margin_contribution_report__cost_origin
+msgid "Origen del costo"
+msgstr "Origen del costo"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields.selection,name:kai_replenishment_cost_auto.selection__kai_margin_contribution_report__cost_origin__history_before
+msgid "Historial anterior"
+msgstr "Historial anterior"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields.selection,name:kai_replenishment_cost_auto.selection__kai_margin_contribution_report__cost_origin__history_after
+msgid "Historial posterior"
+msgstr "Historial posterior"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields.selection,name:kai_replenishment_cost_auto.selection__kai_margin_contribution_report__cost_origin__replenishment
+msgid "Reposición actual"
+msgstr "Reposición actual"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields.selection,name:kai_replenishment_cost_auto.selection__kai_margin_contribution_report__cost_origin__standard
+msgid "Estándar"
+msgstr "Estándar"
 
 #. module: kai_replenishment_cost_auto
 #: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_margin_contribution_report__margin_percent
@@ -264,8 +309,10 @@ msgstr "Contribución %"
 #. module: kai_replenishment_cost_auto
 #: model:ir.model.fields,help:kai_replenishment_cost_auto.field_kai_margin_contribution_report__margin_percent
 msgid ""
-"Porcentaje de la fila (compañía, producto y mes). En el pivot, al agrupar, "
-"el promedio no reemplaza al porcentaje recalculado."
+"Porcentaje de la fila: (ventas - CMV total) / ventas. El CMV total suma el "
+"contable y el estimado. En el pivot, al agrupar, el promedio no reemplaza "
+"al porcentaje recalculado."
 msgstr ""
-"Porcentaje de la fila (compañía, producto y mes). En el pivot, al agrupar, "
-"el promedio no reemplaza al porcentaje recalculado."
+"Porcentaje de la fila: (ventas - CMV total) / ventas. El CMV total suma el "
+"contable y el estimado. En el pivot, al agrupar, el promedio no reemplaza "
+"al porcentaje recalculado."

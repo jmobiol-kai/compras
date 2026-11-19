@@ -1,7 +1,7 @@
 Costo de reposición automático
 ==============================
 
-Módulo ``kai_replenishment_cost_auto`` (19.0.1.3.0, LGPL-3) para un grupo
+Módulo ``kai_replenishment_cost_auto`` (19.0.1.4.0, LGPL-3) para un grupo
 con empresa central y sucursales, mismo CUIT. El costo de reposición es uno
 solo para todo el grupo y sirve de referencia para el precio. El módulo no
 escribe el precio de venta (``list_price``) ni el costo contable
@@ -58,15 +58,38 @@ compañía principal. También se guardan el costo anterior, el nuevo y la
 variación en importe y en %.
 
 Si ese costo mueve el roll-up de un fabricado, se agrega otra fila con
-origen «LdM», apuntando al insumo y a la factura. Volver la factura a
-borrador o cancelarla marca esas filas como anuladas y no revierte la
-tarifa. En la ficha del producto hay un botón «Historial de costo».
+origen «LdM», apuntando al insumo y a la factura. El costo del insumo y
+el del fabricado se leen por separado: en el mismo lote, el cómputo de
+Adhoc devuelve 0 para el componente y la fila no se escribía. Si aun así
+el costo en vivo no se mueve, el roll-up se calcula con las cantidades de
+la lista de materiales. Volver la factura a borrador o cancelarla marca
+esas filas como anuladas y no revierte la tarifa. En la ficha del producto hay un botón «Historial de costo».
 Inventario → Informes → «Historial de costo de reposición» tiene lista,
 pivot y gráfico, filtros por producto, categoría, proveedor, sucursal y
 fecha, y se exporta. Con la compañía principal entre las compañías activas
 se leen todas las sucursales; si no, solo las propias. «Cargar desde
 facturas publicadas» reconstruye el historial en orden de fecha, sin tocar
 el costo actual.
+
+CMV estimado
+------------
+
+Ventas anteriores a la valuación en tiempo real no tienen líneas de CMV:
+el informe las mostraba con CMV 0 y contribución 100 %. Para cada línea
+de factura de cliente o de POS no facturado, si el producto es almacenable
+y no hay CMV contable (en el POS, ``total_cost`` en cero), se estima
+cantidad en la unidad del producto, con signo negativo en la nota de
+crédito, por un costo a la fecha de la venta. El orden es: último
+historial vigente con fecha anterior o igual, si no el primer historial
+posterior, si no la lista de materiales (cada insumo con la misma regla),
+si no la tarifa compartida y si no el costo contable. Servicios y
+consumibles no valuados quedan en cero. No se crean asientos.
+
+El informe muestra el CMV contable, el estimado, el total y la
+contribución sobre el total, más el origen del costo y el filtro «Con
+CMV estimado». Abre agrupado por compañía, con «Este mes», «Mes anterior»
+y el rango de fechas. El pivot arranca con ventas netas, CMV total,
+contribución y contribución %.
 
 Decisiones
 ----------
@@ -124,7 +147,7 @@ Contabilidad → Informes, y Punto de venta → Informes. Pivot, gráfico y list
 con filtros por compañía, producto, categoría y mes. La regla de registro
 limita las filas a las compañías activas del usuario.
 
-Cada fila es compañía + producto + mes:
+Cada fila es compañía + producto + mes + origen del costo estimado:
 
 * Ventas facturadas: ``-balance`` de las líneas de producto de facturas y
   notas de crédito de cliente cuya cuenta es de ingreso. Es moneda de la
@@ -141,9 +164,11 @@ Cada fila es compañía + producto + mes:
 * El pedido de POS ya facturado no entra por el ticket: entra por la factura.
   El asiento de cierre de sesión es un asiento ``entry``, no una factura, y
   tampoco entra. No hay doble conteo entre POS facturado y no facturado.
+* Si no hay CMV contable, el CMV estimado se suma aparte. La contribución
+  usa el CMV total (contable + estimado). Ver «CMV estimado».
 
 El porcentaje de la lista es el de esa fila. En el pivot, al agrupar, el
-promedio del porcentaje no reemplaza a ``(ventas - CMV) / ventas``.
+promedio del porcentaje no reemplaza a ``(ventas - CMV total) / ventas``.
 
 Cómo correr los tests
 ---------------------
@@ -173,6 +198,8 @@ LdM de dos niveles (el costo sube y el ``list_price`` queda igual),
 ``standard_price`` intacto, precio sugerido con margen heredado y con
 margen propio, el historial (dos proveedores al mismo precio, cascada de
 LdM, anulación sin revertir el costo y carga desde facturas ya publicadas),
+el CMV estimado (historial anterior, solo posterior, sin historial, con
+CMV contable y nota de crédito),
 el listado de costo 0, y el reporte (factura con CMV, POS no
 facturado, POS facturado que no se duplica, reembolso de POS).
 
