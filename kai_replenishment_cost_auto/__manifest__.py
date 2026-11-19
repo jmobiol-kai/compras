@@ -14,10 +14,11 @@ categoría (heredado del padre, o el del producto si tiene margen propio)
 solo arma un precio sugerido de referencia.
 
 Inventario → Productos → Precio sugerido vs. actual.
+Inventario → Informes → Historial de costo de reposición.
 Compras → Productos → Productos con costo 0 sin compras.
 Contabilidad → Informes → Contribución marginal (también en Punto de venta).
 """,
-    'version': '19.0.1.2.0',
+    'version': '19.0.1.3.0',
     'category': 'Inventory/Purchase',
     'author': 'Kaizendo',
     'license': 'LGPL-3',
@@ -35,6 +36,7 @@ Contabilidad → Informes → Contribución marginal (también en Punto de venta
         'views/margin_contribution_views.xml',
         'views/zero_cost_views.xml',
         'views/category_margin_views.xml',
+        'views/replenishment_cost_history_views.xml',
     ],
     'installable': True,
     'application': False,

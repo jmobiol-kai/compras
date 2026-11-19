@@ -5,3 +5,7 @@ access_kai_margin_contribution_purchase_user,kai.margin.contribution.report.purc
 access_kai_margin_contribution_pos_user,kai.margin.contribution.report.pos.user,model_kai_margin_contribution_report,point_of_sale.group_pos_user,1,0,0,0
 access_kai_category_margin_import_stock_manager,kai.category.margin.import.stock.manager,model_kai_category_margin_import,stock.group_stock_manager,1,1,1,1
 access_kai_category_margin_import_purchase_manager,kai.category.margin.import.purchase.manager,model_kai_category_margin_import,purchase.group_purchase_manager,1,1,1,1
+access_kai_cost_history_stock_user,kai.replenishment.cost.history.stock.user,model_kai_replenishment_cost_history,stock.group_stock_user,1,0,0,0
+access_kai_cost_history_purchase_user,kai.replenishment.cost.history.purchase.user,model_kai_replenishment_cost_history,purchase.group_purchase_user,1,0,0,0
+access_kai_cost_history_stock_manager,kai.replenishment.cost.history.stock.manager,model_kai_replenishment_cost_history,stock.group_stock_manager,1,1,1,1
+access_kai_cost_history_purchase_manager,kai.replenishment.cost.history.purchase.manager,model_kai_replenishment_cost_history,purchase.group_purchase_manager,1,1,1,1

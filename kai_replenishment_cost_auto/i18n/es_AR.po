@@ -130,6 +130,93 @@ msgid "No hay líneas para importar."
 msgstr "No hay líneas para importar."
 
 #. module: kai_replenishment_cost_auto
+#: model:ir.model,name:kai_replenishment_cost_auto.model_kai_replenishment_cost_history
+#: model:ir.ui.menu,name:kai_replenishment_cost_auto.menu_kai_replenishment_cost_history
+#: model:ir.actions.act_window,name:kai_replenishment_cost_auto.action_kai_replenishment_cost_history
+msgid "Historial de costo de reposición"
+msgstr "Historial de costo de reposición"
+
+#. module: kai_replenishment_cost_auto
+#: code:addons/kai_replenishment_cost_auto/models/product_template.py:0
+msgid "Historial de costo"
+msgstr "Historial de costo"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_replenishment_cost_history__date
+msgid "Fecha"
+msgstr "Fecha"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_replenishment_cost_history__partner_id
+msgid "Proveedor"
+msgstr "Proveedor"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_replenishment_cost_history__company_id
+msgid "Sucursal"
+msgstr "Sucursal"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_replenishment_cost_history__price_unit
+msgid "Precio unitario"
+msgstr "Precio unitario"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_replenishment_cost_history__cost_previous
+msgid "Costo anterior"
+msgstr "Costo anterior"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_replenishment_cost_history__cost_new
+msgid "Costo nuevo"
+msgstr "Costo nuevo"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_replenishment_cost_history__variation_amount
+msgid "Variación"
+msgstr "Variación"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_replenishment_cost_history__variation_percent
+msgid "Variación %"
+msgstr "Variación %"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_replenishment_cost_history__origin
+msgid "Origen"
+msgstr "Origen"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields.selection,name:kai_replenishment_cost_auto.selection__kai_replenishment_cost_history__origin__bill
+msgid "Factura"
+msgstr "Factura"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields.selection,name:kai_replenishment_cost_auto.selection__kai_replenishment_cost_history__origin__bom
+msgid "LdM"
+msgstr "LdM"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_replenishment_cost_history__state
+msgid "Estado"
+msgstr "Estado"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields.selection,name:kai_replenishment_cost_auto.selection__kai_replenishment_cost_history__state__posted
+msgid "Vigente"
+msgstr "Vigente"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields.selection,name:kai_replenishment_cost_auto.selection__kai_replenishment_cost_history__state__cancel
+msgid "Anulada"
+msgstr "Anulada"
+
+#. module: kai_replenishment_cost_auto
+#: code:addons/kai_replenishment_cost_auto/models/kai_replenishment_cost_history.py:0
+msgid "Se cargaron %s filas desde facturas publicadas."
+msgstr "Se cargaron %s filas desde facturas publicadas."
+
+#. module: kai_replenishment_cost_auto
 #: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_margin_contribution_report__company_id
 msgid "Compañía"
 msgstr "Compañía"

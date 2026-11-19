@@ -1,7 +1,7 @@
 Costo de reposición automático
 ==============================
 
-Módulo ``kai_replenishment_cost_auto`` (19.0.1.2.0, LGPL-3) para un grupo
+Módulo ``kai_replenishment_cost_auto`` (19.0.1.3.0, LGPL-3) para un grupo
 con empresa central y sucursales, mismo CUIT. El costo de reposición es uno
 solo para todo el grupo y sirve de referencia para el precio. El módulo no
 escribe el precio de venta (``list_price``) ni el costo contable
@@ -45,6 +45,28 @@ no se almacenan: se calculan al abrir el formulario o la lista. Inventario
 y exportar. Inventario → Configuración → Productos → «Importar márgenes
 por categoría» carga líneas ``nombre completo;margen;recargo`` y solo
 escribe la categoría.
+
+Historial de costo
+------------------
+
+Cada línea de factura de proveedor con precio mayor que cero deja una fila
+en el historial, aunque el costo de reposición no cambie. Ahí se ve el
+precio de cada compra (dos proveedores al mismo precio son dos filas) y no
+solo el último de la pestaña Compras. La fecha es la de la factura. El
+precio unitario está en la unidad del producto y en la moneda de la
+compañía principal. También se guardan el costo anterior, el nuevo y la
+variación en importe y en %.
+
+Si ese costo mueve el roll-up de un fabricado, se agrega otra fila con
+origen «LdM», apuntando al insumo y a la factura. Volver la factura a
+borrador o cancelarla marca esas filas como anuladas y no revierte la
+tarifa. En la ficha del producto hay un botón «Historial de costo».
+Inventario → Informes → «Historial de costo de reposición» tiene lista,
+pivot y gráfico, filtros por producto, categoría, proveedor, sucursal y
+fecha, y se exporta. Con la compañía principal entre las compañías activas
+se leen todas las sucursales; si no, solo las propias. «Cargar desde
+facturas publicadas» reconstruye el historial en orden de fecha, sin tocar
+el costo actual.
 
 Decisiones
 ----------
@@ -149,7 +171,9 @@ Cubren: actualización de una tarifa existente al publicar la factura
 vuelta a borrador sin revertir, factura más vieja que no pisa), roll-up de
 LdM de dos niveles (el costo sube y el ``list_price`` queda igual),
 ``standard_price`` intacto, precio sugerido con margen heredado y con
-margen propio, el listado de costo 0, y el reporte (factura con CMV, POS no
+margen propio, el historial (dos proveedores al mismo precio, cascada de
+LdM, anulación sin revertir el costo y carga desde facturas ya publicadas),
+el listado de costo 0, y el reporte (factura con CMV, POS no
 facturado, POS facturado que no se duplica, reembolso de POS).
 
 Limitaciones

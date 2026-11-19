@@ -62,6 +62,10 @@ class ProductTemplate(models.Model):
         digits='Discount',
         help='Diferencia dividida por el precio de venta actual.',
     )
+    kai_cost_history_count = fields.Integer(
+        string='Historial de costo',
+        compute='_compute_kai_cost_history_count',
+    )
 
     @api.depends_context('company')
     @api.depends(
@@ -143,6 +147,47 @@ class ProductTemplate(models.Model):
                 cost = product.replenishment_cost_rule_id.compute_rule(base, product)
             product.replenishment_base_cost_on_currency = base
             product.replenishment_cost = cost
+
+    def _compute_kai_cost_history_count(self):
+        History = self.env['kai.replenishment.cost.history']
+        for product in self:
+            product.kai_cost_history_count = History.search_count([
+                ('product_tmpl_id', '=', product.id),
+                ('state', '=', 'posted'),
+            ])
+
+    def action_kai_cost_history(self):
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Historial de costo'),
+            'res_model': 'kai.replenishment.cost.history',
+            'view_mode': 'list,pivot,graph,form',
+            'domain': [('product_tmpl_id', '=', self.id)],
+            'context': {'default_product_tmpl_id': self.id},
+        }
+
+    def _kai_bom_parent_products(self):
+        """Variantes fabricadas que consumen estas plantillas, de abajo hacia arriba."""
+        seen = set(self.ids)
+        result = self.env['product.product']
+        frontier = self
+        BomLine = self.env['mrp.bom.line'].sudo()
+        while frontier:
+            variants = frontier.with_context(active_test=False).product_variant_ids
+            if not variants:
+                break
+            lines = BomLine.search([('product_id', 'in', variants.ids)])
+            parents = lines.bom_id.filtered(lambda bom: bom.product_tmpl_id.id not in seen)
+            if not parents:
+                break
+            level = self.env['product.product']
+            for bom in parents:
+                level |= bom.product_id or bom.product_tmpl_id.product_variant_ids[:1]
+            result |= level
+            seen.update(parents.product_tmpl_id.ids)
+            frontier = parents.product_tmpl_id
+        return result
 
     def _kai_effective_margin(self):
         """Margen y recargo de referencia: el del producto o el de la categoría."""
