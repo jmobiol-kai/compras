@@ -1,7 +1,7 @@
 Costo de reposición automático
 ==============================
 
-Módulo ``kai_replenishment_cost_auto`` (19.0.1.0.0, LGPL-3) para un grupo
+Módulo ``kai_replenishment_cost_auto`` (19.0.1.1.0, LGPL-3) para un grupo
 con empresa central y sucursales, mismo CUIT. El costo de reposición es uno
 solo para todo el grupo y sirve para formar el precio de venta. El costo
 contable (``standard_price``, FIFO en tiempo real) no se toca.
@@ -27,6 +27,27 @@ módulos de Adhoc en la rama 19.0 de ``ingadhoc/product``:
   ``reposición de la compañía principal * (1 + margen%) + recargo``. El
   cron copia ese valor a ``list_price``. Este módulo llama al mismo método
   en el momento, sin esperar al cron.
+
+Margen por categoría
+--------------------
+
+El margen no se carga producto por producto. En la categoría hay
+«Definir margen», un margen % y un recargo. Si «Definir margen» está
+desmarcado, se heredan los de la categoría padre. En la raíz, sin definir,
+el margen es 0 y el recargo es 0.
+
+En el producto, «Margen propio» usa los campos de Precio planificado
+(``sale_margin`` y ``sale_surcharge``). Si está desmarcado, el precio «Por
+margen» usa el margen efectivo de la categoría. La fórmula no cambia:
+costo de reposición de la compañía principal (en este cliente, Blinis SA)
+× (1 + margen %) + recargo, más el IVA si el impuesto está incluido en el
+precio. Al publicar la factura de proveedor se recalculan los productos
+«Por margen» y los fabricados que los usan en una lista de materiales.
+
+«Aplicar margen a productos», en la categoría, pasa a «Por margen» los
+productos de esa categoría y de las hijas que no tienen margen propio, y
+recalcula el precio. Inventario → Configuración → Productos → «Importar
+márgenes por categoría» carga líneas ``nombre completo;margen;recargo``.
 
 Decisiones
 ----------

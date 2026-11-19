@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="product_category_form_margin" model="ir.ui.view">
+        <field name="name">product.category.form.kai.margin</field>
+        <field name="model">product.category</field>
+        <field name="inherit_id" ref="product.product_category_form_view"/>
+        <field name="arch" type="xml">
+            <sheet position="before">
+                <header>
+                    <button name="action_kai_apply_margin" type="object"
+                            string="Aplicar margen a productos" class="btn-primary"/>
+                </header>
+            </sheet>
+            <field name="parent_id" position="after">
+                <field name="kai_margin_defined"/>
+                <field name="kai_margin_percent" invisible="not kai_margin_defined"/>
+                <field name="kai_surcharge" invisible="not kai_margin_defined"/>
+                <field name="kai_effective_margin_percent"/>
+                <field name="kai_effective_surcharge"/>
+            </field>
+        </field>
+    </record>
+
+    <record id="product_template_form_own_margin" model="ir.ui.view">
+        <field name="name">product.template.form.kai.own.margin</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product_planned_price.product_template_only_form_view"/>
+        <field name="arch" type="xml">
+            <field name="list_price_type" position="after">
+                <field name="kai_own_margin" invisible="list_price_type != 'by_margin'"/>
+                <field name="kai_category_margin_percent" invisible="kai_own_margin or list_price_type != 'by_margin'"/>
+                <field name="kai_category_surcharge" invisible="kai_own_margin or list_price_type != 'by_margin'"/>
+            </field>
+        </field>
+    </record>
+
+    <record id="view_kai_category_margin_import_form" model="ir.ui.view">
+        <field name="name">kai.category.margin.import.form</field>
+        <field name="model">kai.category.margin.import</field>
+        <field name="arch" type="xml">
+            <form string="Importar márgenes por categoría">
+                <group>
+                    <field name="apply_to_products"/>
+                    <field name="data" placeholder="Bebidas;35;10&#10;Bebidas / Gaseosas;40"/>
+                </group>
+                <footer>
+                    <button name="action_import" type="object" string="Importar" class="btn-primary"/>
+                    <button string="Cancelar" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_kai_category_margin_import" model="ir.actions.act_window">
+        <field name="name">Importar márgenes por categoría</field>
+        <field name="res_model">kai.category.margin.import</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem id="menu_kai_category_margin_import"
+              name="Importar márgenes por categoría"
+              parent="stock.menu_product_in_config_stock"
+              action="action_kai_category_margin_import"
+              sequence="25"
+              groups="stock.group_stock_manager"/>
+</odoo>

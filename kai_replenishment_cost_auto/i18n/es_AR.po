@@ -38,6 +38,87 @@ msgid "Actualizar precios de venta por costo de reposición"
 msgstr "Actualizar precios de venta por costo de reposición"
 
 #. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_product_category__kai_margin_defined
+msgid "Definir margen"
+msgstr "Definir margen"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_product_category__kai_margin_percent
+msgid "Margen %"
+msgstr "Margen %"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_product_category__kai_surcharge
+msgid "Recargo"
+msgstr "Recargo"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_product_category__kai_effective_margin_percent
+msgid "Margen efectivo %"
+msgstr "Margen efectivo %"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_product_category__kai_effective_surcharge
+msgid "Recargo efectivo"
+msgstr "Recargo efectivo"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_product_template__kai_own_margin
+msgid "Margen propio"
+msgstr "Margen propio"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_product_template__kai_category_margin_percent
+msgid "Margen de la categoría %"
+msgstr "Margen de la categoría %"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_product_template__kai_category_surcharge
+msgid "Recargo de la categoría"
+msgstr "Recargo de la categoría"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.actions.act_window,name:kai_replenishment_cost_auto.action_kai_category_margin_import
+#: model:ir.ui.menu,name:kai_replenishment_cost_auto.menu_kai_category_margin_import
+msgid "Importar márgenes por categoría"
+msgstr "Importar márgenes por categoría"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_category_margin_import__apply_to_products
+msgid "Aplicar a los productos sin margen propio"
+msgstr "Aplicar a los productos sin margen propio"
+
+#. module: kai_replenishment_cost_auto
+#: code:addons/kai_replenishment_cost_auto/models/product_category.py:0
+msgid "Margen aplicado"
+msgstr "Margen aplicado"
+
+#. module: kai_replenishment_cost_auto
+#: code:addons/kai_replenishment_cost_auto/models/product_category.py:0
+msgid "Se actualizaron %s productos."
+msgstr "Se actualizaron %s productos."
+
+#. module: kai_replenishment_cost_auto
+#: code:addons/kai_replenishment_cost_auto/models/product_category.py:0
+msgid "No se encontró una sola categoría para: %s"
+msgstr "No se encontró una sola categoría para: %s"
+
+#. module: kai_replenishment_cost_auto
+#: code:addons/kai_replenishment_cost_auto/models/product_category.py:0
+msgid "Línea %s: use «categoría;margen;recargo»."
+msgstr "Línea %s: use «categoría;margen;recargo»."
+
+#. module: kai_replenishment_cost_auto
+#: code:addons/kai_replenishment_cost_auto/models/product_category.py:0
+msgid "Línea %s: el margen y el recargo tienen que ser números."
+msgstr "Línea %s: el margen y el recargo tienen que ser números."
+
+#. module: kai_replenishment_cost_auto
+#: code:addons/kai_replenishment_cost_auto/models/product_category.py:0
+msgid "No hay líneas para importar."
+msgstr "No hay líneas para importar."
+
+#. module: kai_replenishment_cost_auto
 #: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_margin_contribution_report__company_id
 msgid "Compañía"
 msgstr "Compañía"

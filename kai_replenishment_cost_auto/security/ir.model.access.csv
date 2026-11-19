@@ -3,3 +3,5 @@ access_kai_margin_contribution_account_readonly,kai.margin.contribution.report.a
 access_kai_margin_contribution_account_invoice,kai.margin.contribution.report.account.invoice,model_kai_margin_contribution_report,account.group_account_invoice,1,0,0,0
 access_kai_margin_contribution_purchase_user,kai.margin.contribution.report.purchase.user,model_kai_margin_contribution_report,purchase.group_purchase_user,1,0,0,0
 access_kai_margin_contribution_pos_user,kai.margin.contribution.report.pos.user,model_kai_margin_contribution_report,point_of_sale.group_pos_user,1,0,0,0
+access_kai_category_margin_import_stock_manager,kai.category.margin.import.stock.manager,model_kai_category_margin_import,stock.group_stock_manager,1,1,1,1
+access_kai_category_margin_import_purchase_manager,kai.category.margin.import.purchase.manager,model_kai_category_margin_import,purchase.group_purchase_manager,1,1,1,1
