@@ -33,7 +33,7 @@ class TestEstimatedCogs(KaiReplenishmentCommon):
         vals.update(extra)
         return self._goods(name, **vals)
 
-    def _history(self, product, when, cost, state='posted'):
+    def _history(self, product, when, cost, state='posted', origin='bill'):
         return self.env['kai.replenishment.cost.history'].create({
             'date': when,
             'product_id': product.id,
@@ -47,7 +47,7 @@ class TestEstimatedCogs(KaiReplenishmentCommon):
             'cost_new': cost,
             'variation_amount': cost,
             'variation_percent': 100.0,
-            'origin': 'bill',
+            'origin': origin,
             'state': state,
         })
 
@@ -181,7 +181,8 @@ class TestEstimatedCogs(KaiReplenishmentCommon):
             self.skipTest('sale_stock no está instalado')
         product = self._storable('Devolución con nota')
         self._history(product, date(2026, 5, 1), 15.0)
-        order = self.env['sale.order'].create({
+        # El usuario del test no tiene grupo de Ventas.
+        order = self.env['sale.order'].sudo().create({
             'partner_id': self.partner_a.id,
             'order_line': [Command.create({
                 'product_id': product.id,
@@ -193,7 +194,7 @@ class TestEstimatedCogs(KaiReplenishmentCommon):
         order.action_confirm()
         sale_line = order.order_line[:1]
         customers = self.env.ref('stock.stock_location_customers')
-        warehouse = self.env['stock.warehouse'].search([
+        warehouse = self.env['stock.warehouse'].sudo().search([
             ('company_id', '=', self.env.company.id),
         ], limit=1)
         stock = warehouse.lot_stock_id
@@ -294,3 +295,33 @@ class TestEstimatedCogs(KaiReplenishmentCommon):
         report = self._report(finished, date(2026, 6, 1))
         self.assertEqual(report.cost_origin, 'history_before')
         self.assertAlmostEqual(report.cogs_estimated, 80.0, places=2)
+
+    def test_manufactured_ignores_later_partial_bom_history(self):
+        component = self._storable(
+            'Insumo desayuno',
+            replenishment_cost_type='last_supplier_price',
+        )
+        finished = self._storable(
+            'Desayuno',
+            replenishment_cost_type='bom',
+        )
+        self.env['mrp.bom'].create({
+            'product_tmpl_id': finished.product_tmpl_id.id,
+            'product_qty': 1.0,
+            'product_uom_id': self.uom_unit.id,
+            'type': 'normal',
+            'company_id': False,
+            'bom_line_ids': [Command.create({
+                'product_id': component.id,
+                'product_qty': 2.0,
+                'product_uom_id': self.uom_unit.id,
+            })],
+        })
+        # Único historial del fabricado: roll-up parcial posterior, origen LdM.
+        self._history(finished, date(2026, 11, 5), 921.25, origin='bom')
+        # El insumo no tiene historial anterior; sí una factura posterior.
+        self._history(component, date(2026, 11, 5), 5.0, origin='bill')
+        self._customer_invoice(finished, date(2026, 10, 15), quantity=1.0, price=100.0)
+        report = self._report(finished, date(2026, 10, 1))
+        self.assertEqual(report.cost_origin, 'bom')
+        self.assertAlmostEqual(report.cogs_estimated, 10.0, places=2)

@@ -117,6 +117,7 @@ DECLARE
     v_tmpl integer;
     v_type varchar;
     v_bom_id integer;
+    v_has_bom boolean;
     v_bom_qty numeric;
     v_bom_uom integer;
     v_product_uom integer;
@@ -156,20 +157,22 @@ BEGIN
         RETURN;
     END IF;
 
-    -- Fabricado: la LdM a la fecha gana sobre un historial posterior
-    -- (ese historial suele ser un roll-up parcial, no el costo de entonces).
-    IF v_type = 'bom' AND p_depth < 8 THEN
-        SELECT b.id, b.product_qty, b.product_uom_id
-          INTO v_bom_id, v_bom_qty, v_bom_uom
-          FROM mrp_bom b
-         WHERE b.product_tmpl_id = v_tmpl
-           AND (b.product_id IS NULL OR b.product_id = p_product_id)
-           AND (b.company_id IS NULL OR b.company_id = p_company_id OR b.company_id = p_main_company_id)
-           AND COALESCE(b.active, TRUE)
-           AND b.type = 'normal'
-         ORDER BY (b.product_id IS NOT NULL) DESC, b.sequence, b.id
-         LIMIT 1;
-        IF v_bom_id IS NOT NULL THEN
+    -- Hay lista de materiales aunque el tipo de costo no diga «LdM».
+    SELECT b.id, b.product_qty, b.product_uom_id
+      INTO v_bom_id, v_bom_qty, v_bom_uom
+      FROM mrp_bom b
+     WHERE b.product_tmpl_id = v_tmpl
+       AND (b.product_id IS NULL OR b.product_id = p_product_id)
+       AND (b.company_id IS NULL OR b.company_id = p_company_id OR b.company_id = p_main_company_id)
+       AND COALESCE(b.active, TRUE)
+       AND b.type = 'normal'
+     ORDER BY (b.product_id IS NOT NULL) DESC, b.sequence, b.id
+     LIMIT 1;
+    v_has_bom := v_bom_id IS NOT NULL OR v_type = 'bom';
+
+    -- Fabricado: la LdM a la fecha gana sobre un historial posterior.
+    -- Una fila LdM posterior es un roll-up parcial y no se usa.
+    IF v_has_bom AND v_bom_id IS NOT NULL AND p_depth < 8 THEN
             v_total := 0;
             FOR v_line IN
                 SELECT bl.product_id, bl.product_qty, bl.product_uom_id,
@@ -201,19 +204,24 @@ BEGIN
                 RETURN QUERY SELECT v_total, 'bom'::varchar;
                 RETURN;
             END IF;
-        END IF;
     END IF;
 
-    SELECT h.cost_new INTO v_cost
-      FROM kai_replenishment_cost_history h
-     WHERE h.product_id = p_product_id
-       AND h.state = 'posted'
-       AND h.date > p_date
-     ORDER BY h.date ASC, h.id ASC
-     LIMIT 1;
-    IF v_cost IS NOT NULL THEN
-        RETURN QUERY SELECT v_cost, 'history_after'::varchar;
-        RETURN;
+    -- El fabricado no usa historial posterior: una fila LdM de después es
+    -- un roll-up parcial. En un comprado, el posterior vale solo si nació
+    -- de una factura, no de una LdM.
+    IF NOT v_has_bom THEN
+        SELECT h.cost_new INTO v_cost
+          FROM kai_replenishment_cost_history h
+         WHERE h.product_id = p_product_id
+           AND h.state = 'posted'
+           AND h.origin = 'bill'
+           AND h.date > p_date
+         ORDER BY h.date ASC, h.id ASC
+         LIMIT 1;
+        IF v_cost IS NOT NULL THEN
+            RETURN QUERY SELECT v_cost, 'history_after'::varchar;
+            RETURN;
+        END IF;
     END IF;
 
     SELECT si.price * (1 - COALESCE(si.discount, 0) / 100.0), si.currency_id
