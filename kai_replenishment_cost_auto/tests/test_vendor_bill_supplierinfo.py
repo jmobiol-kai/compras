@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime
 
 from odoo import Command, fields
 from odoo.tests import tagged
@@ -107,17 +107,18 @@ class TestVendorBillSupplierinfo(KaiReplenishmentCommon):
     def test_older_bill_does_not_overwrite_a_newer_price(self):
         product = self._goods('Aceite', replenishment_cost_type='last_supplier_price')
         seller = self._shared_seller(product, self.partner_a, 40.0)
-        future = fields.Datetime.now() + timedelta(days=3)
+        # Fecha fija, posterior a la factura. No depende de "ahora" ni del
+        # orden de creación si dos tarifas empatan el día.
         self.env.cr.execute(
             "UPDATE product_supplierinfo SET last_date_price_updated = %s WHERE id = %s",
-            (future, seller.id),
+            (datetime(2026, 6, 1, 12, 0, 0), seller.id),
         )
-        seller.invalidate_recordset(['last_date_price_updated'])
+        self.env['kai.replenishment.cost.history']._kai_invalidate_cost_cache(product)
 
         bill = self._vendor_bill(self.partner_a, [{
             'product': product,
             'price_unit': 1.0,
-        }], invoice_date=fields.Date.context_today(self))
+        }], invoice_date=fields.Date.to_date('2026-01-15'))
         bill.action_post()
         seller.invalidate_recordset()
         self.assertAlmostEqual(seller.price, 40.0, places=2)

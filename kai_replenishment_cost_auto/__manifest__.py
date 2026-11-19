@@ -18,7 +18,7 @@ Inventario → Informes → Historial de costo de reposición.
 Compras → Productos → Productos con costo 0 sin compras.
 Contabilidad → Informes → Contribución marginal (también en Punto de venta).
 """,
-    'version': '19.0.1.4.2',
+    'version': '19.0.1.4.3',
     'category': 'Inventory/Purchase',
     'author': 'Kaizendo',
     'license': 'LGPL-3',

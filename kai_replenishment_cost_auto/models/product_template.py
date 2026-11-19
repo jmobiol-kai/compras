@@ -89,7 +89,7 @@ class ProductTemplate(models.Model):
             if not shared:
                 continue
             chosen = shared.sorted(
-                key=lambda seller: seller.last_date_price_updated or datetime.min,
+                key=lambda seller: (seller.last_date_price_updated or datetime.min, seller.id or 0),
                 reverse=True,
             )[:1]
             values = {

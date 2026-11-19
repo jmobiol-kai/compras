@@ -1,7 +1,7 @@
 Costo de reposición automático
 ==============================
 
-Módulo ``kai_replenishment_cost_auto`` (19.0.1.4.2, LGPL-3) para un grupo
+Módulo ``kai_replenishment_cost_auto`` (19.0.1.4.3, LGPL-3) para un grupo
 con empresa central y sucursales, mismo CUIT. El costo de reposición es uno
 solo para todo el grupo y sirve de referencia para el precio. El módulo no
 escribe el precio de venta (``list_price``) ni el costo contable
@@ -85,8 +85,11 @@ producto comprado el orden es: historial vigente anterior o igual, si no
 el primer historial posterior que venga de una factura (una fila LdM
 posterior no cuenta), si no la tarifa compartida y si no el costo
 contable. En un fabricado: historial anterior o igual (factura o LdM),
-si no la lista de materiales a esa fecha, si no la tarifa y si no el
-costo contable. No se usa una fila LdM posterior: es un roll-up parcial. Servicios y
+si no la lista de materiales del grupo (sin compañía o de la empresa
+central, no la de la sucursal) a esa fecha, si no la tarifa compartida
+y si no el costo contable de la empresa central. El costo de cada
+insumo sale de esa misma tarifa compartida, no del ``standard_price``
+de la sucursal. No se usa una fila LdM posterior: es un roll-up parcial. Servicios y
 consumibles no valuados quedan en cero. No se crean asientos.
 
 El informe muestra el CMV contable, el estimado, el total y la

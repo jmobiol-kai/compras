@@ -51,6 +51,30 @@ class TestEstimatedCogs(KaiReplenishmentCommon):
             'state': state,
         })
 
+    def _validate_picking(self, picking):
+        """Confirma la transferencia sin crear stock.move a mano.
+
+        En Odoo 19 el movimiento no tiene ``name``.
+        """
+        picking = picking.sudo()
+        if picking.state == 'done':
+            return
+        picking.action_confirm()
+        for move in picking.move_ids:
+            if 'quantity' in move._fields:
+                move.quantity = move.product_uom_qty
+            if 'picked' in move._fields:
+                move.picked = True
+        result = picking.with_context(skip_backorder=True, skip_sanity_check=True).button_validate()
+        if isinstance(result, dict) and result.get('res_model'):
+            follow = self.env[result['res_model']].sudo().with_context(
+                result.get('context') or {},
+            ).create({})
+            if hasattr(follow, 'process'):
+                follow.process()
+            elif hasattr(follow, 'process_cancel_backorder'):
+                follow.process_cancel_backorder()
+
     def _customer_invoice(self, product, when, quantity=1.0, price=100.0, refund=False):
         revenue = self.company_data['default_account_revenue']
         invoice = self.env['account.move'].create({
@@ -193,38 +217,20 @@ class TestEstimatedCogs(KaiReplenishmentCommon):
         })
         order.action_confirm()
         sale_line = order.order_line[:1]
-        customers = self.env.ref('stock.stock_location_customers')
-        warehouse = self.env['stock.warehouse'].sudo().search([
-            ('company_id', '=', self.env.company.id),
-        ], limit=1)
-        stock = warehouse.lot_stock_id
-        Move = self.env['stock.move'].sudo()
-        uom_field = 'product_uom_id' if 'product_uom_id' in Move._fields else 'product_uom'
-        outgoing = Move.create({
-            'name': product.name,
-            'product_id': product.id,
-            uom_field: product.uom_id.id,
-            'product_uom_qty': 1.0,
-            'location_id': stock.id,
-            'location_dest_id': customers.id,
-            'sale_line_id': sale_line.id,
-            'company_id': self.env.company.id,
-        })
-        returned = Move.create({
-            'name': 'Devolución',
-            'product_id': product.id,
-            uom_field: product.uom_id.id,
-            'product_uom_qty': 1.0,
-            'location_id': customers.id,
-            'location_dest_id': stock.id,
-            'sale_line_id': sale_line.id,
-            'origin_returned_move_id': outgoing.id,
-            'company_id': self.env.company.id,
-        })
-        self.env.cr.execute(
-            "UPDATE stock_move SET state = 'done' WHERE id = %s",
-            (returned.id,),
+        picking = order.picking_ids.sudo()[:1]
+        self.assertTrue(picking, 'La venta no generó una entrega.')
+        self._validate_picking(picking)
+        Return = self.env['stock.return.picking'].sudo().with_context(
+            active_id=picking.id,
+            active_ids=[picking.id],
+            active_model='stock.picking',
         )
+        wizard = Return.create({'picking_id': picking.id})
+        if hasattr(wizard, '_onchange_picking_id'):
+            wizard._onchange_picking_id()
+        action = wizard.action_create_returns()
+        return_picking = self.env['stock.picking'].sudo().browse(action['res_id'])
+        self._validate_picking(return_picking)
         invoice = self._customer_invoice(
             product, date(2026, 6, 15), quantity=1.0, price=50.0, refund=True,
         )
@@ -323,5 +329,67 @@ class TestEstimatedCogs(KaiReplenishmentCommon):
         self._history(component, date(2026, 11, 5), 5.0, origin='bill')
         self._customer_invoice(finished, date(2026, 10, 15), quantity=1.0, price=100.0)
         report = self._report(finished, date(2026, 10, 1))
+        self.assertEqual(report.cost_origin, 'bom')
+        self.assertAlmostEqual(report.cogs_estimated, 10.0, places=2)
+
+    def test_branch_sale_uses_main_company_bom_not_branch_standard_price(self):
+        branch_data = getattr(self, 'company_data_2', None)
+        if not branch_data:
+            self.skipTest('La base de test no tiene una segunda compañía.')
+        branch = branch_data['company']
+        branch.sudo().parent_id = self.env.company
+        component = self._storable(
+            'Insumo central',
+            replenishment_cost_type='last_supplier_price',
+        )
+        finished = self._storable(
+            'Desayuno central',
+            replenishment_cost_type='bom',
+        )
+        self._shared_seller(component, self.partner_a, 5.0)
+        self.env['mrp.bom'].sudo().create({
+            'product_tmpl_id': finished.product_tmpl_id.id,
+            'product_qty': 1.0,
+            'product_uom_id': self.uom_unit.id,
+            'type': 'normal',
+            'company_id': self.env.company.id,
+            'bom_line_ids': [Command.create({
+                'product_id': component.id,
+                'product_qty': 2.0,
+                'product_uom_id': self.uom_unit.id,
+            })],
+        })
+        # El costo contable de la sucursal no tiene que ganar.
+        finished.with_company(branch).sudo().standard_price = 999.0
+        component.with_company(branch).sudo().standard_price = 999.0
+        revenue = branch_data['default_account_revenue']
+        journal = branch_data['default_journal_sale']
+        invoice = self.env['account.move'].with_company(branch).sudo().create({
+            'move_type': 'out_invoice',
+            'company_id': branch.id,
+            'journal_id': journal.id,
+            'partner_id': self.partner_a.id,
+            'invoice_date': date(2026, 10, 15),
+            'invoice_line_ids': [Command.create({
+                'product_id': finished.id,
+                'name': finished.name,
+                'quantity': 1.0,
+                'price_unit': 100.0,
+                'account_id': revenue.id,
+                'tax_ids': [Command.clear()],
+            })],
+        })
+        invoice.invoice_line_ids.sudo().write({
+            'quantity': 1.0,
+            'price_unit': 100.0,
+            'account_id': revenue.id,
+            'tax_ids': [Command.clear()],
+        })
+        invoice.sudo().action_post()
+        report = self.env['kai.margin.contribution.report'].sudo().search([
+            ('product_id', '=', finished.id),
+            ('company_id', '=', branch.id),
+            ('date', '=', date(2026, 10, 1)),
+        ])
         self.assertEqual(report.cost_origin, 'bom')
         self.assertAlmostEqual(report.cogs_estimated, 10.0, places=2)

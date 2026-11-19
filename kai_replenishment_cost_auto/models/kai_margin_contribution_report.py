@@ -118,6 +118,8 @@ DECLARE
     v_type varchar;
     v_bom_id integer;
     v_has_bom boolean;
+    v_root integer;
+    v_parent integer;
     v_bom_qty numeric;
     v_bom_uom integer;
     v_product_uom integer;
@@ -145,6 +147,15 @@ BEGIN
       JOIN product_template pt ON pt.id = pp.product_tmpl_id
      WHERE pp.id = p_product_id;
 
+    -- La sucursal (Happ) sube hasta la compañía sin padre (Blinis).
+    -- base.main_company no siempre es esa empresa.
+    v_root := p_company_id;
+    LOOP
+        SELECT parent_id INTO v_parent FROM res_company WHERE id = v_root;
+        EXIT WHEN v_parent IS NULL;
+        v_root := v_parent;
+    END LOOP;
+
     SELECT h.cost_new INTO v_cost
       FROM kai_replenishment_cost_history h
      WHERE h.product_id = p_product_id
@@ -157,16 +168,19 @@ BEGIN
         RETURN;
     END IF;
 
-    -- Hay lista de materiales aunque el tipo de costo no diga «LdM».
+    -- LdM del grupo: sin compañía o de la empresa central. La de la sucursal
+    -- no tapa la de Blinis.
     SELECT b.id, b.product_qty, b.product_uom_id
       INTO v_bom_id, v_bom_qty, v_bom_uom
       FROM mrp_bom b
      WHERE b.product_tmpl_id = v_tmpl
        AND (b.product_id IS NULL OR b.product_id = p_product_id)
-       AND (b.company_id IS NULL OR b.company_id = p_company_id OR b.company_id = p_main_company_id)
+       AND (b.company_id IS NULL OR b.company_id = v_root)
        AND COALESCE(b.active, TRUE)
        AND b.type = 'normal'
-     ORDER BY (b.product_id IS NOT NULL) DESC, b.sequence, b.id
+     ORDER BY (b.company_id = v_root) DESC,
+              (b.product_id IS NOT NULL) DESC,
+              b.sequence, b.id
      LIMIT 1;
     v_has_bom := v_bom_id IS NOT NULL OR v_type = 'bom';
 
@@ -237,7 +251,7 @@ BEGIN
      LIMIT 1;
     IF COALESCE(v_seller_price, 0) <> 0 THEN
         v_cost := v_seller_price;
-        SELECT currency_id INTO v_main_currency FROM res_company WHERE id = p_main_company_id;
+        SELECT currency_id INTO v_main_currency FROM res_company WHERE id = v_root;
         IF v_seller_currency IS NOT NULL
            AND v_main_currency IS NOT NULL
            AND v_seller_currency <> v_main_currency THEN
@@ -254,10 +268,8 @@ BEGIN
         SELECT pp.standard_price INTO v_standard
           FROM product_product pp
          WHERE pp.id = p_product_id;
-        v_raw := NULLIF(v_standard ->> p_company_id::text, '');
-        IF v_raw IS NULL THEN
-            v_raw := NULLIF(v_standard ->> p_main_company_id::text, '');
-        END IF;
+        -- Costo contable del grupo, no el de la sucursal que vendió.
+        v_raw := NULLIF(v_standard ->> v_root::text, '');
         IF v_raw IS NOT NULL THEN
             v_cost := v_raw::numeric;
         END IF;

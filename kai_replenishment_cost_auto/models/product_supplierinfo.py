@@ -20,7 +20,10 @@ class ProductSupplierinfo(models.Model):
         self = self.sudo()
         template = product.product_tmpl_id.sudo()
         seller = self._kai_shared_seller_for(partner, product)
-        if seller and seller.last_date_price_updated and seller.last_date_price_updated.date() > invoice_date:
+        # La fecha se lee de la base: un cómputo de Adhoc la deja en caché
+        # como "ahora" y una factura vieja pisa un precio más nuevo según
+        # el orden en que se haya leído.
+        if seller and self._kai_stored_price_date(seller) > invoice_date:
             return self.browse()
 
         if template.replenishment_cost_type in ('manual', 'supplier_price'):
@@ -79,10 +82,23 @@ class ProductSupplierinfo(models.Model):
             pool = template_level or sellers.filtered(lambda seller: seller.product_id == product)
         if not pool:
             return self.browse()
-        return pool.sorted(
-            key=lambda seller: seller.last_date_price_updated or datetime.min,
-            reverse=True,
-        )[:1]
+        return pool.sorted(key=self._kai_seller_rank, reverse=True)[:1]
+
+    @staticmethod
+    def _kai_seller_rank(seller):
+        """Más nuevo primero: fecha de la factura y, si empatan, el id."""
+        return (seller.last_date_price_updated or datetime.min, seller.id or 0)
+
+    def _kai_stored_price_date(self, seller):
+        self.env.cr.execute(
+            "SELECT last_date_price_updated FROM product_supplierinfo WHERE id = %s",
+            (seller.id,),
+        )
+        stored = self.env.cr.fetchone()
+        if not stored or not stored[0]:
+            return datetime.min.date()
+        value = stored[0]
+        return value.date() if hasattr(value, 'date') else value
 
     @staticmethod
     def _kai_invoice_price_datetime(invoice_date, seller):
@@ -115,8 +131,5 @@ class ProductSupplierinfo(models.Model):
         )
         if not shared:
             return False
-        winner = shared.sorted(
-            key=lambda seller: seller.last_date_price_updated or datetime.min,
-            reverse=True,
-        )[:1]
+        winner = shared.sorted(key=self._kai_seller_rank, reverse=True)[:1]
         return winner == self
