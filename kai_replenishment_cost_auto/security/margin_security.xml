@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="kai_margin_contribution_report_company_rule" model="ir.rule">
+        <field name="name">Contribución marginal: compañías permitidas</field>
+        <field name="model_id" ref="model_kai_margin_contribution_report"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        <field name="global" eval="True"/>
+    </record>
+
+    <record id="kai_replenishment_cost_history_company_rule" model="ir.rule">
+        <field name="name">Historial de costo: sucursales, y todas si está Blinis</field>
+        <field name="model_id" ref="model_kai_replenishment_cost_history"/>
+        <field name="domain_force">['|', ('company_id', 'in', company_ids), ('company_id', 'child_of', user.env.ref('base.main_company').id)] if user.env.ref('base.main_company').id in company_ids else [('company_id', 'in', company_ids)]</field>
+        <field name="global" eval="True"/>
+    </record>
+</odoo>

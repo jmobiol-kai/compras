@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_kai_replenishment_cost_history_list" model="ir.ui.view">
+        <field name="name">kai.replenishment.cost.history.list</field>
+        <field name="model">kai.replenishment.cost.history</field>
+        <field name="arch" type="xml">
+            <list string="Historial de costo de reposición" create="false" edit="false" delete="false">
+                <header>
+                    <button name="action_kai_backfill_from_bills" type="object"
+                            string="Cargar desde facturas publicadas"
+                            groups="stock.group_stock_manager,purchase.group_purchase_manager"/>
+                </header>
+                <field name="date"/>
+                <field name="product_id"/>
+                <field name="categ_id" optional="show"/>
+                <field name="origin"/>
+                <field name="partner_id" optional="show"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+                <field name="source_product_id" optional="hide"/>
+                <field name="quantity" optional="hide"/>
+                <field name="product_uom_id" optional="hide"/>
+                <field name="price_unit"/>
+                <field name="cost_previous"/>
+                <field name="cost_new"/>
+                <field name="variation_amount" sum="Variación"/>
+                <field name="variation_percent"/>
+                <field name="state" widget="badge"
+                       decoration-muted="state == 'cancel'"
+                       decoration-success="state == 'posted'"/>
+                <field name="move_id" optional="hide"/>
+                <field name="currency_id" column_invisible="1"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_kai_replenishment_cost_history_form" model="ir.ui.view">
+        <field name="name">kai.replenishment.cost.history.form</field>
+        <field name="model">kai.replenishment.cost.history</field>
+        <field name="arch" type="xml">
+            <form string="Historial de costo" create="false" edit="false" delete="false">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="date"/>
+                            <field name="product_id"/>
+                            <field name="categ_id"/>
+                            <field name="origin"/>
+                            <field name="source_product_id"/>
+                            <field name="state"/>
+                        </group>
+                        <group>
+                            <field name="partner_id"/>
+                            <field name="company_id"/>
+                            <field name="move_id"/>
+                            <field name="move_line_id"/>
+                            <field name="quantity"/>
+                            <field name="product_uom_id"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="currency_id" invisible="1"/>
+                        <field name="price_unit"/>
+                        <field name="cost_previous"/>
+                        <field name="cost_new"/>
+                        <field name="variation_amount"/>
+                        <field name="variation_percent"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_kai_replenishment_cost_history_pivot" model="ir.ui.view">
+        <field name="name">kai.replenishment.cost.history.pivot</field>
+        <field name="model">kai.replenishment.cost.history</field>
+        <field name="arch" type="xml">
+            <pivot string="Historial de costo de reposición">
+                <field name="product_id" type="row"/>
+                <field name="date" type="col" interval="month"/>
+                <field name="cost_new" type="measure"/>
+                <field name="variation_amount" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="view_kai_replenishment_cost_history_graph" model="ir.ui.view">
+        <field name="name">kai.replenishment.cost.history.graph</field>
+        <field name="model">kai.replenishment.cost.history</field>
+        <field name="arch" type="xml">
+            <graph string="Historial de costo de reposición" type="line">
+                <field name="date" interval="day"/>
+                <field name="cost_new" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="view_kai_replenishment_cost_history_search" model="ir.ui.view">
+        <field name="name">kai.replenishment.cost.history.search</field>
+        <field name="model">kai.replenishment.cost.history</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="product_id"/>
+                <field name="categ_id"/>
+                <field name="partner_id"/>
+                <field name="company_id"/>
+                <field name="move_id"/>
+                <filter name="posted" string="Vigentes" domain="[('state', '=', 'posted')]"/>
+                <filter name="cancel" string="Anuladas" domain="[('state', '=', 'cancel')]"/>
+                <filter name="bill" string="Factura" domain="[('origin', '=', 'bill')]"/>
+                <filter name="bom" string="LdM" domain="[('origin', '=', 'bom')]"/>
+                <separator/>
+                <filter name="filter_date" string="Fecha" date="date"/>
+                <group>
+                    <filter name="group_product" string="Producto" context="{'group_by': 'product_id'}"/>
+                    <filter name="group_categ" string="Categoría" context="{'group_by': 'categ_id'}"/>
+                    <filter name="group_partner" string="Proveedor" context="{'group_by': 'partner_id'}"/>
+                    <filter name="group_company" string="Sucursal" context="{'group_by': 'company_id'}"/>
+                    <filter name="group_date" string="Fecha" context="{'group_by': 'date'}"/>
+                    <filter name="group_origin" string="Origen" context="{'group_by': 'origin'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_kai_replenishment_cost_history" model="ir.actions.act_window">
+        <field name="name">Historial de costo de reposición</field>
+        <field name="res_model">kai.replenishment.cost.history</field>
+        <field name="view_mode">list,pivot,graph,form</field>
+        <field name="search_view_id" ref="view_kai_replenishment_cost_history_search"/>
+        <field name="context">{'search_default_posted': 1}</field>
+    </record>
+
+    <record id="action_kai_backfill_cost_history" model="ir.actions.server">
+        <field name="name">Cargar historial de costo desde facturas publicadas</field>
+        <field name="model_id" ref="model_kai_replenishment_cost_history"/>
+        <field name="state">code</field>
+        <field name="group_ids" eval="[(4, ref('stock.group_stock_manager')), (4, ref('purchase.group_purchase_manager'))]"/>
+        <field name="code">action = model.action_kai_backfill_from_bills()</field>
+    </record>
+
+    <menuitem id="menu_kai_replenishment_cost_history"
+              name="Historial de costo de reposición"
+              parent="stock.menu_warehouse_report"
+              action="action_kai_replenishment_cost_history"
+              sequence="40"
+              groups="stock.group_stock_user,purchase.group_purchase_user"/>
+
+    <record id="product_template_form_cost_history" model="ir.ui.view">
+        <field name="name">product.template.form.kai.cost.history</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_form_view"/>
+        <field name="arch" type="xml">
+            <div name="button_box" position="inside">
+                <button name="action_kai_cost_history" type="object"
+                        class="oe_stat_button" icon="fa-history">
+                    <field name="kai_cost_history_count" widget="statinfo" string="Historial de costo"/>
+                </button>
+            </div>
+        </field>
+    </record>
+</odoo>
