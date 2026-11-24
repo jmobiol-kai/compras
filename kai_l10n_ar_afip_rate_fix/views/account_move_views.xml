@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_move_form_kai_afip_rate" model="ir.ui.view">
+        <field name="name">account.move.kai.afip.rate.form</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="l10n_ar_afipws_fe.view_move_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//button[@name='get_pyafipws_currency_rate']" position="before">
+                <field name="company_currency_id" invisible="1"/>
+                <field name="kai_l10n_ar_afip_currency_code" invisible="1"/>
+            </xpath>
+            <xpath expr="//button[@name='get_pyafipws_currency_rate']" position="attributes">
+                <attribute name="invisible">state != 'draft' or not validation_type or not invoice_date or currency_id == company_currency_id or kai_l10n_ar_afip_currency_code == 'PES'</attribute>
+            </xpath>
+        </field>
+    </record>
+</odoo>
