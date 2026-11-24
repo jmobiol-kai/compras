@@ -1,0 +1,88 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+# 	* kai_l10n_ar_afip_rate_fix
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 19.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-24 12:00+0000\n"
+"PO-Revision-Date: 2026-11-24 12:00+0000\n"
+"Last-Translator: Kaizendo\n"
+"Language-Team: \n"
+"Language: es_AR\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. module: kai_l10n_ar_afip_rate_fix
+#: model:ir.model.fields,field_description:kai_l10n_ar_afip_rate_fix.field_account_move__kai_l10n_ar_afip_currency_code
+msgid "AFIP currency code"
+msgstr "Código de moneda AFIP"
+
+#. module: kai_l10n_ar_afip_rate_fix
+#. odoo-python
+#: code:addons/kai_l10n_ar_afip_rate_fix/models/account_move.py:0
+msgid "AFIP currency rate"
+msgstr "Cotización AFIP"
+
+#. module: kai_l10n_ar_afip_rate_fix
+#. odoo-python
+#: code:addons/kai_l10n_ar_afip_rate_fix/models/account_move.py:0
+msgid "AFIP currency rate: %s"
+msgstr "Cotización AFIP: %s"
+
+#. module: kai_l10n_ar_afip_rate_fix
+#. odoo-python
+#: code:addons/kai_l10n_ar_afip_rate_fix/models/account_move.py:0
+msgid "AFIP currency rate: 1. AFIP does not quote ARS (PES); the rate is 1."
+msgstr "Cotización AFIP: 1. AFIP no cotiza ARS (PES); la tasa queda en 1."
+
+#. module: kai_l10n_ar_afip_rate_fix
+#. odoo-python
+#: code:addons/kai_l10n_ar_afip_rate_fix/models/account_move.py:0
+msgid "AFIP did not return a quotation for currency %(currency)s (MonId=%(mon)s).%(err)s"
+msgstr "AFIP no devolvió cotización para la moneda %(currency)s (MonId=%(mon)s).%(err)s"
+
+#. module: kai_l10n_ar_afip_rate_fix
+#. odoo-python
+#: code:addons/kai_l10n_ar_afip_rate_fix/models/account_move.py:0
+msgid "AFIP did not return a valid MonCotiz for currency %(currency)s (MonId=%(mon)s).%(err)s"
+msgstr "AFIP no devolvió un MonCotiz válido para la moneda %(currency)s (MonId=%(mon)s).%(err)s"
+
+#. module: kai_l10n_ar_afip_rate_fix
+#. odoo-python
+#: code:addons/kai_l10n_ar_afip_rate_fix/models/account_move.py:0
+msgid "AFIP did not return a valid MonCotiz for currency %(currency)s (MonId=%(mon)s): %(value)s"
+msgstr "AFIP no devolvió un MonCotiz válido para la moneda %(currency)s (MonId=%(mon)s): %(value)s"
+
+#. module: kai_l10n_ar_afip_rate_fix
+#. odoo-python
+#: code:addons/kai_l10n_ar_afip_rate_fix/models/account_move.py:0
+msgid "AFIP did not return a valid quotation: %s"
+msgstr "AFIP no devolvió una cotización válida: %s"
+
+#. module: kai_l10n_ar_afip_rate_fix
+#. odoo-python
+#: code:addons/kai_l10n_ar_afip_rate_fix/models/account_move.py:0
+msgid "Could not get the AFIP currency quotation: %s"
+msgstr "No se pudo consultar la cotización AFIP: %s"
+
+#. module: kai_l10n_ar_afip_rate_fix
+#. odoo-python
+#: code:addons/kai_l10n_ar_afip_rate_fix/models/account_move.py:0
+msgid "The currency %s has no AFIP code (l10n_ar_afip_code)."
+msgstr "La moneda %s no tiene código AFIP (l10n_ar_afip_code)."
+
+#. module: kai_l10n_ar_afip_rate_fix
+#. odoo-python
+#: code:addons/kai_l10n_ar_afip_rate_fix/models/account_move.py:0
+msgid "The invoice currency is %s. AFIP does not provide a quotation for ARS (PES); the rate remains 1."
+msgstr "La moneda de la factura es %s. AFIP no informa cotización para ARS (PES); la tasa permanece en 1."
+
+#. module: kai_l10n_ar_afip_rate_fix
+#. odoo-python
+#: code:addons/kai_l10n_ar_afip_rate_fix/models/account_move.py:0
+msgid "The journal has no AFIP web service configured."
+msgstr "El diario no tiene configurado un web service de AFIP."
