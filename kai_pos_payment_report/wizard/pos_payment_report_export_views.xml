@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_pos_payment_report_export_form" model="ir.ui.view">
+        <field name="name">kai.pos.payment.report.export.form</field>
+        <field name="model">kai.pos.payment.report.export</field>
+        <field name="arch" type="xml">
+            <form string="Exportar planilla">
+                <group>
+                    <field name="date_from"/>
+                    <field name="date_to"/>
+                </group>
+                <footer>
+                    <button name="action_export_xlsx" type="object"
+                            string="Exportar planilla" class="btn-primary"
+                            data-hotkey="q"/>
+                    <button string="Cancelar" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_pos_payment_report_export" model="ir.actions.act_window">
+        <field name="name">Exportar planilla</field>
+        <field name="res_model">kai.pos.payment.report.export</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="view_id" ref="view_pos_payment_report_export_form"/>
+        <field name="group_ids" eval="[(4, ref('group_pos_payment_journal_report'))]"/>
+    </record>
+
+    <!-- 19.0.1.2.2: drop the Reportes menu; export is the pivot toolbar
+         button and the list header button. -->
+    <delete model="ir.ui.menu" id="menu_pos_payment_report_export"/>
+
+    <record id="view_pos_payment_report_list_export_button" model="ir.ui.view">
+        <field name="name">pos.payment.report.list.export.button</field>
+        <field name="model">pos.payment</field>
+        <field name="inherit_id" ref="view_pos_payment_journal_report_list"/>
+        <field name="arch" type="xml">
+            <xpath expr="//list" position="inside">
+                <header>
+                    <button name="%(action_pos_payment_report_export)d" type="action"
+                            string="Exportar planilla" display="always" class="btn-primary"/>
+                </header>
+            </xpath>
+        </field>
+    </record>
+</odoo>
