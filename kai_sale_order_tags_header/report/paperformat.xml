@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        Fallback for sale and purchase PDFs. Does not replace
+        base.paperformat_euro. Customer invoices keep the company format
+        and only replace the top margin when the repeating header is
+        actually rendered, so vendor bills stay on the global format.
+
+        These 80 / 72 millimetres are only the fallback. On patched
+        wkhtmltopdf each sale order measures its own header and replaces
+        margin_top, so a short order does not keep the blank of a long one.
+        header_spacing stays 8mm under that measured top, which is what keeps
+        the block at the top of the page instead of on the lines.
+    -->
+    <record id="paperformat_saleorder" model="report.paperformat">
+        <field name="name">A4 documentos</field>
+        <field name="default" eval="False"/>
+        <field name="format">A4</field>
+        <field name="page_height">0</field>
+        <field name="page_width">0</field>
+        <field name="orientation">Portrait</field>
+        <field name="margin_top">80</field>
+        <field name="margin_bottom">32</field>
+        <field name="margin_left">0</field>
+        <field name="margin_right">0</field>
+        <field name="header_line" eval="False"/>
+        <field name="header_spacing">72</field>
+        <field name="dpi">90</field>
+        <field name="css_margins" eval="True"/>
+    </record>
+
+    <record id="sale.action_report_saleorder" model="ir.actions.report">
+        <field name="paperformat_id" ref="paperformat_saleorder"/>
+    </record>
+    <record id="sale.action_report_pro_forma_invoice" model="ir.actions.report">
+        <field name="paperformat_id" ref="paperformat_saleorder"/>
+    </record>
+    <record id="purchase.action_report_purchase_order" model="ir.actions.report">
+        <field name="paperformat_id" ref="paperformat_saleorder"/>
+    </record>
+    <record id="purchase.report_purchase_quotation" model="ir.actions.report">
+        <field name="paperformat_id" ref="paperformat_saleorder"/>
+    </record>
+</odoo>

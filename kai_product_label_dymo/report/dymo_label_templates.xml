@@ -11,19 +11,27 @@
          It goes on its own line so it does not overlap the price on a 55 mm width. -->
     <template id="report_simple_label_dymo_ref" inherit_id="product.report_simple_label_dymo">
         <xpath expr="//div[hasclass('o_label_dymo')]" position="attributes">
-            <attribute name="t-att-style">(padding_page or '') + ';width:55mm;height:43mm;box-sizing:border-box;margin-left:-2mm;margin-right:0;display:table;'</attribute>
+            <attribute name="t-att-style">'padding:2mm 1mm;width:55mm;height:43mm;box-sizing:border-box;margin-left:-2mm;margin-right:0;display:table;'</attribute>
         </xpath>
         <!-- Everything horizontally centered. -->
         <xpath expr="//div[hasclass('o_label_full')]" position="attributes">
-            <attribute name="t-att-style">table_style + 'text-align:center;display:table-cell;vertical-align:middle;padding-top:4mm;height:35mm;'</attribute>
+            <attribute name="t-att-style">table_style + 'text-align:center;display:table-cell;vertical-align:middle;' + ('padding:1.5mm 0 0 0;height:37.5mm;' if barcode else 'padding:3mm 0 0 0;height:36mm;')</attribute>
         </xpath>
         <xpath expr="//div[hasclass('o_label_small_barcode')]" position="attributes">
             <attribute name="class">text-center o_label_small_barcode</attribute>
             <attribute name="style">text-align:center;</attribute>
             <attribute name="t-if">barcode</attribute>
         </xpath>
+        <!-- Barcode caption: tighter than the stock 1.7em so the barcode plus a 3-line name and the reference still fit on one label. -->
+        <xpath expr="//t[@t-if='barcode']/div[hasclass('o_label_name')]" position="attributes">
+            <attribute name="style">height:1.2em;line-height:1.2em;padding:0;background-color:transparent;overflow:hidden;</attribute>
+        </xpath>
+        <!-- Product name: let it wrap onto as many lines as needed (the stock CSS forces height:3em + overflow:hidden), keeping the font size. -->
+        <xpath expr="//span[@t-if='product.is_product_variant']/.." position="attributes">
+            <attribute name="style">line-height:100%;background-color:transparent;padding:1px 0 0 0;height:auto;overflow:visible;white-space:normal;word-wrap:break-word;overflow-wrap:break-word;text-align:center;</attribute>
+        </xpath>
         <xpath expr="//div[hasclass('o_label_left_column')]" position="replace">
-            <div style="width:100%;box-sizing:border-box;clear:both;overflow:hidden;padding:2px 4px;text-align:center;">
+            <div style="width:100%;box-sizing:border-box;clear:both;overflow:hidden;padding:2px 0;text-align:center;">
                 <span class="text-nowrap" t-field="product.default_code" style="font-size:24pt;line-height:1.1;"/>
             </div>
         </xpath>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="kai_pos_payment_report.PivotView.Buttons" t-inherit="web.PivotView.Buttons" t-inherit-mode="primary">
+        <xpath expr="//button[hasclass('o_pivot_download')]" position="after">
+            <button t-if="canExportPlanilla"
+                    type="button"
+                    class="btn btn-secondary o_kai_pos_payment_export"
+                    t-on-click="onExportPlanillaClicked"
+                    data-tooltip="Exportar planilla"
+                    aria-label="Exportar planilla">
+                Exportar planilla
+            </button>
+        </xpath>
+    </t>
+</templates>

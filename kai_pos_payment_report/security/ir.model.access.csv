@@ -1,0 +1,7 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_pos_payment_kai_payment_report,pos.payment kai payment report,point_of_sale.model_pos_payment,group_pos_payment_journal_report,1,0,0,0
+access_pos_order_kai_payment_report,pos.order kai payment report,point_of_sale.model_pos_order,group_pos_payment_journal_report,1,0,0,0
+access_pos_config_kai_payment_report,pos.config kai payment report,point_of_sale.model_pos_config,group_pos_payment_journal_report,1,0,0,0
+access_pos_payment_method_kai_payment_report,pos.payment.method kai payment report,point_of_sale.model_pos_payment_method,group_pos_payment_journal_report,1,0,0,0
+access_account_journal_kai_payment_report,account.journal kai payment report,account.model_account_journal,group_pos_payment_journal_report,1,0,0,0
+access_kai_pos_payment_report_export,kai.pos.payment.report.export,model_kai_pos_payment_report_export,group_pos_payment_journal_report,1,1,1,1

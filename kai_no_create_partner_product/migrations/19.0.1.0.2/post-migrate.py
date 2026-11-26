@@ -16,6 +16,22 @@ def migrate(cr, version):
         return
     cr.execute(
         """
+        SELECT 1
+          FROM information_schema.columns
+         WHERE table_schema = 'public'
+           AND table_name = 'res_users'
+           AND column_name = 'kai_allow_create_partner_product'
+        """
+    )
+    if not cr.fetchone():
+        _logger.info(
+            "kai_no_create_partner_product: upgrade from %s skipped the flag "
+            "reset because kai_allow_create_partner_product is no longer stored.",
+            version,
+        )
+        return
+    cr.execute(
+        """
         ALTER TABLE res_users
         ALTER COLUMN kai_allow_create_partner_product SET DEFAULT FALSE
         """

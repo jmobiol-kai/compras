@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_pos_payment_journal_report_pivot" model="ir.ui.view">
+        <field name="name">pos.payment.journal.report.pivot</field>
+        <field name="model">pos.payment</field>
+        <field name="arch" type="xml">
+            <pivot string="Pagos por método y diario" sample="1" js_class="kai_pos_payment_pivot">
+                <field name="config_id" type="row"/>
+                <field name="sales_journal_id" type="row"/>
+                <field name="payment_medium_type" type="col"/>
+                <field name="payment_method_id" type="col"/>
+                <field name="amount" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="view_pos_payment_journal_report_graph" model="ir.ui.view">
+        <field name="name">pos.payment.journal.report.graph</field>
+        <field name="model">pos.payment</field>
+        <field name="arch" type="xml">
+            <graph string="Pagos por método y diario" type="bar" sample="1">
+                <field name="sales_journal_id"/>
+                <field name="payment_medium_type"/>
+                <field name="payment_method_id"/>
+                <field name="amount" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="view_pos_payment_journal_report_list" model="ir.ui.view">
+        <field name="name">pos.payment.journal.report.list</field>
+        <field name="model">pos.payment</field>
+        <field name="arch" type="xml">
+            <list string="Pagos por método y diario" create="0" delete="0" edit="0">
+                <field name="currency_id" column_invisible="True"/>
+                <field name="payment_date"/>
+                <field name="payment_date_date" optional="hide"/>
+                <field name="config_id"/>
+                <field name="sales_journal_id"/>
+                <field name="payment_medium_type"/>
+                <field name="payment_method_id"/>
+                <field name="pos_order_id"/>
+                <field name="amount"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_pos_payment_journal_report_search" model="ir.ui.view">
+        <field name="name">pos.payment.journal.report.search</field>
+        <field name="model">pos.payment</field>
+        <field name="arch" type="xml">
+            <search string="Pagos por método y diario">
+                <field name="pos_order_id"/>
+                <field name="config_id"/>
+                <field name="sales_journal_id"/>
+                <field name="payment_medium_type"/>
+                <field name="payment_method_id"/>
+                <filter name="filter_payment_date" date="payment_date" string="Fecha de pago"/>
+                <separator/>
+                <filter name="not_cancelled" string="Sin cancelar"
+                        domain="[('pos_order_id.state', '!=', 'cancel')]"/>
+                <separator/>
+                <group>
+                    <filter name="group_by_config" string="Punto de venta" domain="[]"
+                            context="{'group_by': 'config_id'}"/>
+                    <filter name="group_by_sales_journal" string="Diario de facturación" domain="[]"
+                            context="{'group_by': 'sales_journal_id'}"/>
+                    <filter name="group_by_payment_medium_type" string="Tipo de medio" domain="[]"
+                            context="{'group_by': 'payment_medium_type'}"/>
+                    <filter name="group_by_payment_method" string="Método de pago" domain="[]"
+                            context="{'group_by': 'payment_method_id'}"/>
+                    <filter name="group_by_payment_day" string="Día de pago" domain="[]"
+                            context="{'group_by': 'payment_date_date'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_pos_payment_journal_report" model="ir.actions.act_window">
+        <field name="name">Pagos por método y diario</field>
+        <field name="res_model">pos.payment</field>
+        <field name="view_mode">pivot,graph,list</field>
+        <field name="search_view_id" ref="view_pos_payment_journal_report_search"/>
+        <field name="context">{'search_default_not_cancelled': 1}</field>
+        <field name="group_ids" eval="[(4, ref('group_pos_payment_journal_report'))]"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No hay pagos de PdV en el período o los filtros seleccionados.
+            </p>
+        </field>
+    </record>
+
+    <record id="action_pos_payment_journal_report_view_pivot" model="ir.actions.act_window.view">
+        <field name="sequence" eval="1"/>
+        <field name="view_mode">pivot</field>
+        <field name="view_id" ref="view_pos_payment_journal_report_pivot"/>
+        <field name="act_window_id" ref="action_pos_payment_journal_report"/>
+    </record>
+    <record id="action_pos_payment_journal_report_view_graph" model="ir.actions.act_window.view">
+        <field name="sequence" eval="2"/>
+        <field name="view_mode">graph</field>
+        <field name="view_id" ref="view_pos_payment_journal_report_graph"/>
+        <field name="act_window_id" ref="action_pos_payment_journal_report"/>
+    </record>
+    <record id="action_pos_payment_journal_report_view_list" model="ir.actions.act_window.view">
+        <field name="sequence" eval="3"/>
+        <field name="view_mode">list</field>
+        <field name="view_id" ref="view_pos_payment_journal_report_list"/>
+        <field name="act_window_id" ref="action_pos_payment_journal_report"/>
+    </record>
+
+    <menuitem
+        id="menu_pos_payment_journal_report"
+        name="Pagos por método y diario"
+        parent="point_of_sale.menu_point_rep"
+        action="action_pos_payment_journal_report"
+        groups="group_pos_payment_journal_report"
+        sequence="15"/>
+
+    <!-- Replace groups on upgrade: the 19.0.1.0.0 menuitem used group_pos_manager
+         and a groups= attribute does not drop the previous relation. -->
+    <record id="menu_pos_payment_journal_report" model="ir.ui.menu">
+        <field name="group_ids" eval="[(6, 0, [ref('group_pos_payment_journal_report')])]"/>
+    </record>
+</odoo>
