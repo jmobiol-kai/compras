@@ -99,6 +99,12 @@ odoo-bin -c odoo.conf -d test_kai --test-enable --stop-after-init \
     --test-tags /kai_payment_method_journal_sync
 ```
 
+En una base con datos reales el usuario de test no tiene
+`uom.group_uom`. `setUpClass` lo suma en `get_default_groups`, que es
+el momento en que `BaseCommon` arma ese usuario, antes de que
+`UomCommon` reactive la docena (`uom_dozen.active = True`). Sin el
+grupo ese write tira AccessError y la suite no arranca.
+
 Cubren: cambiar de diario conserva `own_checks` del diario nuevo (no la
 primera línea, si esa es Transferencia); el write conjunto del pago 2440
 (diario nuevo + «Cheques propios» del diario viejo) no dispara el

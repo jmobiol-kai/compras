@@ -18,6 +18,25 @@ class TestPaymentMethodJournalSync(AccountTestInvoicingCommon):
     """
 
     @classmethod
+    def get_default_groups(cls):
+        """El usuario de test tiene que poder reactivar la docena.
+
+        ``AccountTestInvoicingCommon`` termina en ``UomCommon.setUpClass``,
+        que hace ``uom_dozen.active = True`` (uom/tests/common.py). En una
+        base real ese usuario no trae ``uom.group_uom`` (Gestión de Unidades
+        de Medida) y el write tira AccessError. ``BaseCommon`` arma el
+        usuario con estos grupos antes de ese write, así que el grupo tiene
+        que estar acá: ``cls.env`` todavía no existe al entrar a nuestro
+        ``setUpClass``, y el usuario que escribe la unidad se crea adentro
+        del ``super()``.
+        """
+        groups = super().get_default_groups()
+        group_uom = cls.env.ref('uom.group_uom', raise_if_not_found=False)
+        if group_uom:
+            groups |= group_uom
+        return groups
+
+    @classmethod
     def setUpClass(cls):
         super().setUpClass()
         cls.company = cls.company_data['company']
