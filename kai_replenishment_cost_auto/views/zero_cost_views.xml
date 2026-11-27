@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="action_kai_zero_replenishment_cost" model="ir.actions.server">
+        <field name="name">Productos con costo 0 sin compras</field>
+        <field name="model_id" ref="product.model_product_template"/>
+        <field name="state">code</field>
+        <field name="code">action = model.action_kai_open_zero_replenishment_cost()</field>
+    </record>
+
+    <menuitem id="menu_kai_zero_replenishment_cost"
+              name="Productos con costo 0 sin compras"
+              parent="purchase.menu_purchase_products"
+              action="action_kai_zero_replenishment_cost"
+              sequence="40"
+              groups="purchase.group_purchase_user"/>
+</odoo>

@@ -1,0 +1,318 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+# 	* kai_replenishment_cost_auto
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 19.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-18 12:00+0000\n"
+"PO-Revision-Date: 2026-11-18 12:00+0000\n"
+"Last-Translator: Kaizendo\n"
+"Language-Team: Spanish (Argentina)\n"
+"Language: es_AR\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.actions.act_window,name:kai_replenishment_cost_auto.action_kai_margin_contribution
+#: model:ir.model,name:kai_replenishment_cost_auto.model_kai_margin_contribution_report
+#: model:ir.ui.menu,name:kai_replenishment_cost_auto.menu_kai_margin_contribution_account
+#: model:ir.ui.menu,name:kai_replenishment_cost_auto.menu_kai_margin_contribution_pos
+msgid "Contribución marginal"
+msgstr "Contribución marginal"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.actions.server,name:kai_replenishment_cost_auto.action_kai_zero_replenishment_cost
+#: model:ir.ui.menu,name:kai_replenishment_cost_auto.menu_kai_zero_replenishment_cost
+#: code:addons/kai_replenishment_cost_auto/models/product_template.py:0
+msgid "Productos con costo 0 sin compras"
+msgstr "Productos con costo 0 sin compras"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_product_category__kai_margin_defined
+msgid "Definir margen"
+msgstr "Definir margen"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_product_category__kai_margin_percent
+msgid "Margen %"
+msgstr "Margen %"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_product_category__kai_surcharge
+msgid "Recargo"
+msgstr "Recargo"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_product_category__kai_effective_margin_percent
+msgid "Margen efectivo %"
+msgstr "Margen efectivo %"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_product_category__kai_effective_surcharge
+msgid "Recargo efectivo"
+msgstr "Recargo efectivo"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_product_template__kai_own_margin
+msgid "Margen propio"
+msgstr "Margen propio"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_product_template__kai_category_margin_percent
+msgid "Margen de la categoría %"
+msgstr "Margen de la categoría %"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_product_template__kai_category_surcharge
+msgid "Recargo de la categoría"
+msgstr "Recargo de la categoría"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_product_template__kai_margin_percent
+msgid "Margen propio %"
+msgstr "Margen propio %"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_product_template__kai_surcharge
+msgid "Recargo propio"
+msgstr "Recargo propio"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_product_template__kai_suggested_price
+msgid "Precio sugerido"
+msgstr "Precio sugerido"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.actions.act_window,name:kai_replenishment_cost_auto.action_kai_suggested_price
+#: model:ir.ui.menu,name:kai_replenishment_cost_auto.menu_kai_suggested_price
+msgid "Precio sugerido vs. actual"
+msgstr "Precio sugerido vs. actual"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_product_template__kai_price_difference
+msgid "Diferencia vs. precio actual"
+msgstr "Diferencia vs. precio actual"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_product_template__kai_price_difference_percent
+msgid "Diferencia %"
+msgstr "Diferencia %"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.actions.act_window,name:kai_replenishment_cost_auto.action_kai_category_margin_import
+#: model:ir.ui.menu,name:kai_replenishment_cost_auto.menu_kai_category_margin_import
+msgid "Importar márgenes por categoría"
+msgstr "Importar márgenes por categoría"
+
+#. module: kai_replenishment_cost_auto
+#: code:addons/kai_replenishment_cost_auto/models/product_category.py:0
+msgid "No se encontró una sola categoría para: %s"
+msgstr "No se encontró una sola categoría para: %s"
+
+#. module: kai_replenishment_cost_auto
+#: code:addons/kai_replenishment_cost_auto/models/product_category.py:0
+msgid "Línea %s: use «categoría;margen;recargo»."
+msgstr "Línea %s: use «categoría;margen;recargo»."
+
+#. module: kai_replenishment_cost_auto
+#: code:addons/kai_replenishment_cost_auto/models/product_category.py:0
+msgid "Línea %s: el margen y el recargo tienen que ser números."
+msgstr "Línea %s: el margen y el recargo tienen que ser números."
+
+#. module: kai_replenishment_cost_auto
+#: code:addons/kai_replenishment_cost_auto/models/product_category.py:0
+msgid "No hay líneas para importar."
+msgstr "No hay líneas para importar."
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model,name:kai_replenishment_cost_auto.model_kai_replenishment_cost_history
+#: model:ir.ui.menu,name:kai_replenishment_cost_auto.menu_kai_replenishment_cost_history
+#: model:ir.actions.act_window,name:kai_replenishment_cost_auto.action_kai_replenishment_cost_history
+msgid "Historial de costo de reposición"
+msgstr "Historial de costo de reposición"
+
+#. module: kai_replenishment_cost_auto
+#: code:addons/kai_replenishment_cost_auto/models/product_template.py:0
+msgid "Historial de costo"
+msgstr "Historial de costo"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_replenishment_cost_history__date
+msgid "Fecha"
+msgstr "Fecha"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_replenishment_cost_history__partner_id
+msgid "Proveedor"
+msgstr "Proveedor"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_replenishment_cost_history__company_id
+msgid "Sucursal"
+msgstr "Sucursal"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_replenishment_cost_history__price_unit
+msgid "Precio unitario"
+msgstr "Precio unitario"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_replenishment_cost_history__cost_previous
+msgid "Costo anterior"
+msgstr "Costo anterior"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_replenishment_cost_history__cost_new
+msgid "Costo nuevo"
+msgstr "Costo nuevo"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_replenishment_cost_history__variation_amount
+msgid "Variación"
+msgstr "Variación"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_replenishment_cost_history__variation_percent
+msgid "Variación %"
+msgstr "Variación %"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_replenishment_cost_history__origin
+msgid "Origen"
+msgstr "Origen"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields.selection,name:kai_replenishment_cost_auto.selection__kai_replenishment_cost_history__origin__bill
+msgid "Factura"
+msgstr "Factura"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields.selection,name:kai_replenishment_cost_auto.selection__kai_replenishment_cost_history__origin__bom
+#: model:ir.model.fields.selection,name:kai_replenishment_cost_auto.selection__kai_margin_contribution_report__cost_origin__bom
+msgid "LdM"
+msgstr "LdM"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_replenishment_cost_history__state
+msgid "Estado"
+msgstr "Estado"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields.selection,name:kai_replenishment_cost_auto.selection__kai_replenishment_cost_history__state__posted
+msgid "Vigente"
+msgstr "Vigente"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields.selection,name:kai_replenishment_cost_auto.selection__kai_replenishment_cost_history__state__cancel
+msgid "Anulada"
+msgstr "Anulada"
+
+#. module: kai_replenishment_cost_auto
+#: code:addons/kai_replenishment_cost_auto/models/kai_replenishment_cost_history.py:0
+msgid "Se cargaron %s filas desde facturas publicadas."
+msgstr "Se cargaron %s filas desde facturas publicadas."
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_margin_contribution_report__company_id
+msgid "Compañía"
+msgstr "Compañía"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_margin_contribution_report__currency_id
+msgid "Moneda"
+msgstr "Moneda"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_margin_contribution_report__product_id
+msgid "Producto"
+msgstr "Producto"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_margin_contribution_report__product_tmpl_id
+msgid "Plantilla"
+msgstr "Plantilla"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_margin_contribution_report__categ_id
+msgid "Categoría"
+msgstr "Categoría"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_margin_contribution_report__date
+msgid "Mes"
+msgstr "Mes"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_margin_contribution_report__sales_amount
+msgid "Ventas netas"
+msgstr "Ventas netas"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_margin_contribution_report__cogs_amount
+msgid "CMV contable"
+msgstr "CMV contable"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_margin_contribution_report__cogs_estimated
+msgid "CMV estimado"
+msgstr "CMV estimado"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_margin_contribution_report__cogs_total
+msgid "CMV total"
+msgstr "CMV total"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_margin_contribution_report__margin_amount
+msgid "Contribución"
+msgstr "Contribución"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_margin_contribution_report__has_estimated_cogs
+msgid "Con CMV estimado"
+msgstr "Con CMV estimado"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_margin_contribution_report__cost_origin
+msgid "Origen del costo"
+msgstr "Origen del costo"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields.selection,name:kai_replenishment_cost_auto.selection__kai_margin_contribution_report__cost_origin__history_before
+msgid "Historial anterior"
+msgstr "Historial anterior"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields.selection,name:kai_replenishment_cost_auto.selection__kai_margin_contribution_report__cost_origin__history_after
+msgid "Historial posterior"
+msgstr "Historial posterior"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields.selection,name:kai_replenishment_cost_auto.selection__kai_margin_contribution_report__cost_origin__replenishment
+msgid "Reposición actual"
+msgstr "Reposición actual"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields.selection,name:kai_replenishment_cost_auto.selection__kai_margin_contribution_report__cost_origin__standard
+msgid "Estándar"
+msgstr "Estándar"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,field_description:kai_replenishment_cost_auto.field_kai_margin_contribution_report__margin_percent
+msgid "Contribución %"
+msgstr "Contribución %"
+
+#. module: kai_replenishment_cost_auto
+#: model:ir.model.fields,help:kai_replenishment_cost_auto.field_kai_margin_contribution_report__margin_percent
+msgid ""
+"Porcentaje de la fila: (ventas - CMV total) / ventas. El CMV total suma el "
+"contable y el estimado. En el pivot, al agrupar, el promedio no reemplaza "
+"al porcentaje recalculado."
+msgstr ""
+"Porcentaje de la fila: (ventas - CMV total) / ventas. El CMV total suma el "
+"contable y el estimado. En el pivot, al agrupar, el promedio no reemplaza "
+"al porcentaje recalculado."
