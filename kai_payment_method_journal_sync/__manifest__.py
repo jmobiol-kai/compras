@@ -13,7 +13,7 @@
         'Si ese método no existe, usa la primera línea disponible. '
         'No crea diarios, líneas ni cuentas.'
     ),
-    'version': '19.0.1.0.1',
+    'version': '19.0.1.0.2',
     'category': 'Accounting',
     'author': 'Kaizendo',
     'license': 'LGPL-3',

@@ -1,6 +1,6 @@
 # Pagos: sincronizar método al cambiar el diario
 
-Módulo de Odoo 19 (`kai_payment_method_journal_sync` 19.0.1.0.1, LGPL-3).
+Módulo de Odoo 19 (`kai_payment_method_journal_sync` 19.0.1.0.2, LGPL-3).
 
 Al cambiar el diario de un pago en borrador, `payment_method_line_id` pasa a
 la línea del diario nuevo que usa el mismo método. No crea diarios, líneas

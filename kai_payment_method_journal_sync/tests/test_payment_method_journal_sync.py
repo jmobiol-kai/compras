@@ -278,5 +278,6 @@ class TestPaymentMethodJournalSync(TransactionCase):
         })
         self.assertEqual(pago.payment_method_line_id, self.cheques_a)
         pago.journal_id = self.diario_b
-        self.assertEqual(pago.payment_method_line_id, self.cheques_b)
+        # En un new() el many2one queda como NewId con el mismo origin.
+        self.assertEqual(pago.payment_method_line_id._origin.id, self.cheques_b.id)
         self.assertEqual(pago.payment_method_line_id.journal_id, self.diario_b)
