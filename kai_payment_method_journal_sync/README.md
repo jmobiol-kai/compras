@@ -1,6 +1,6 @@
 # Pagos: sincronizar método al cambiar el diario
 
-Módulo de Odoo 19 (`kai_payment_method_journal_sync` 19.0.1.0.0, LGPL-3).
+Módulo de Odoo 19 (`kai_payment_method_journal_sync` 19.0.1.0.1, LGPL-3).
 
 Al cambiar el diario de un pago en borrador, `payment_method_line_id` pasa a
 la línea del diario nuevo que usa el mismo método. No crea diarios, líneas
@@ -79,11 +79,17 @@ Este cambio no se instala solo.
 
 ## Cómo correr los tests
 
-Son `TransactionCase` (`AccountTestInvoicingCommon`) con etiqueta
-`post_install`. Hace falta Odoo 19 y `account_payment_pro` con sus
-dependencias en el `addons_path` (en particular `l10n_latam_check`, por
-los cheques). Sin eso el módulo no se puede instalar y los tests no
-corren.
+Son `TransactionCase` con etiqueta `post_install`. No heredan
+`AccountTestInvoicingCommon` ni `UomCommon`: esa cadena crea un usuario
+de test (`BaseCommon.setup_independent_user`) y después
+`UomCommon` hace `uom_dozen.active = True`. En Odoo 19 esa asignación
+llama a `write()`, y `write()` controla el acceso antes de mirar si el
+valor cambió. En 00blinis la escritura de `uom.uom` no la da
+`uom.group_uom` sino un grupo custom, así que la suite corre como
+superusuario (`TransactionCase`) y no depende de los grupos de la base.
+Hace falta Odoo 19 y `account_payment_pro` con sus dependencias en el
+`addons_path` (en particular `l10n_latam_check`, por los cheques). Sin
+eso el módulo no se puede instalar y los tests no corren.
 
 ```
 odoo-bin -c odoo.conf -d test_kai --test-enable --stop-after-init \
@@ -98,12 +104,6 @@ odoo-bin -c odoo.conf -d test_kai --test-enable --stop-after-init \
     -u kai_payment_method_journal_sync \
     --test-tags /kai_payment_method_journal_sync
 ```
-
-En una base con datos reales el usuario de test no tiene
-`uom.group_uom`. `setUpClass` lo suma en `get_default_groups`, que es
-el momento en que `BaseCommon` arma ese usuario, antes de que
-`UomCommon` reactive la docena (`uom_dozen.active = True`). Sin el
-grupo ese write tira AccessError y la suite no arranca.
 
 Cubren: cambiar de diario conserva `own_checks` del diario nuevo (no la
 primera línea, si esa es Transferencia); el write conjunto del pago 2440

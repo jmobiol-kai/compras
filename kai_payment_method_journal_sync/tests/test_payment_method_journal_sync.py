@@ -1,57 +1,50 @@
 # Copyright 2026 Kaizendo
 # License LGPL-3.0 or later (https://www.gnu.org/licenses/lgpl-3.0.html).
 
-from odoo import Command, fields
-from odoo.tests import tagged
-from odoo.addons.account.tests.common import AccountTestInvoicingCommon
+import uuid
+
+from odoo import Command, SUPERUSER_ID, api, fields
+from odoo.tests import TransactionCase, tagged
 
 
 @tagged('post_install', '-at_install')
-class TestPaymentMethodJournalSync(AccountTestInvoicingCommon):
+class TestPaymentMethodJournalSync(TransactionCase):
     """Cambio de diario en un pago de proveedor en borrador.
 
-    Los dos diarios son de la misma compañía. Cada uno tiene Transferencia
-    (manual) primero y Cheques propios (own_checks) después, con el mismo
-    nombre en los dos. El módulo tiene que llevar el método a la línea del
-    diario nuevo, no dejar la del diario anterior ni caer a Transferencia
-    si Cheques propios existe.
+    No hereda ``AccountTestInvoicingCommon``. Esa clase pasa por
+    ``BaseCommon``, que cambia el entorno a un usuario de test, y por
+    ``UomCommon``, que hace ``uom_dozen.active = True``. En Odoo 19 esa
+    asignación llama a ``write()``, y ``write()`` ejecuta ``check_access``
+    antes de descartar un valor igual. En una base real la escritura de
+    ``uom.uom`` puede depender de un grupo sin xmlid. ``TransactionCase``
+    deja el superusuario (``env.su``) y el control de acceso no corre.
+
+    Los dos diarios son de la compañía del entorno. Cada uno tiene
+    Transferencia (manual) primero y Cheques propios (own_checks) después,
+    con el mismo nombre en los dos. El módulo tiene que llevar el método a
+    la línea del diario nuevo, no dejar la del diario anterior ni caer a
+    Transferencia si Cheques propios existe.
     """
-
-    @classmethod
-    def get_default_groups(cls):
-        """El usuario de test tiene que poder reactivar la docena.
-
-        ``AccountTestInvoicingCommon`` termina en ``UomCommon.setUpClass``,
-        que hace ``uom_dozen.active = True`` (uom/tests/common.py). En una
-        base real ese usuario no trae ``uom.group_uom`` (Gestión de Unidades
-        de Medida) y el write tira AccessError. ``BaseCommon`` arma el
-        usuario con estos grupos antes de ese write, así que el grupo tiene
-        que estar acá: ``cls.env`` todavía no existe al entrar a nuestro
-        ``setUpClass``, y el usuario que escribe la unidad se crea adentro
-        del ``super()``.
-        """
-        groups = super().get_default_groups()
-        group_uom = cls.env.ref('uom.group_uom', raise_if_not_found=False)
-        if group_uom:
-            groups |= group_uom
-        return groups
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.company = cls.company_data['company']
-        cls.proveedor = cls.env['res.partner'].create({
+        cls.env = api.Environment(cls.cr, SUPERUSER_ID, cls.env.context)
+        cls.company = cls.env.company
+        cls.proveedor = cls.env['res.partner'].with_company(cls.company).create({
             'name': 'Proveedor Fisa',
             'supplier_rank': 1,
+            'company_id': False,
         })
-        payable = cls.company_data['default_account_payable']
+        payable = cls._cuenta(cls.company, 'liability_payable', reconcile=True)
         cls.proveedor.with_company(cls.company).property_account_payable_id = payable
 
-        cls.cuenta_cheques = cls._cuenta_cheques_pendientes()
-        # Sin cuenta de liquidez: el alta del diario crea la suya. Compartir
-        # la del diario de prueba puede chocar con la unicidad del banco.
-        cls.diario_a = cls._diario_banco('Banco Mercado Pago', 'KMPG')
-        cls.diario_b = cls._diario_banco('Banco Santander', 'KSAN')
+        cls.cuenta_cheques = cls._cuenta(
+            cls.company, 'asset_current', reconcile=True,
+        )
+        # Sin cuenta de liquidez: el alta del diario crea la suya.
+        cls.diario_a = cls._diario_banco('Banco Mercado Pago')
+        cls.diario_b = cls._diario_banco('Banco Santander')
         cls.transferencia_a = cls._linea_metodo(
             cls.diario_a, 'manual', 'Transferencia', 1,
         )
@@ -64,6 +57,8 @@ class TestPaymentMethodJournalSync(AccountTestInvoicingCommon):
         cls.cheques_b = cls._linea_metodo(
             cls.diario_b, 'own_checks', 'Cheques propios', 20, cls.cuenta_cheques,
         )
+        cls._transferencia_primera(cls.diario_a, cls.transferencia_a, cls.cheques_a)
+        cls._transferencia_primera(cls.diario_b, cls.transferencia_b, cls.cheques_b)
         primera_b = cls.diario_b._get_available_payment_method_lines('outbound')[:1]
         if primera_b != cls.transferencia_b:
             raise AssertionError(
@@ -72,31 +67,53 @@ class TestPaymentMethodJournalSync(AccountTestInvoicingCommon):
             )
 
     @classmethod
-    def _cuenta_cheques_pendientes(cls):
-        company = cls.company_data['company']
-        account = cls.env['account.account'].search([
-            ('account_type', '=', 'asset_current'),
-            ('reconcile', '=', True),
-            ('company_ids', 'in', company.ids),
-        ], limit=1)
+    def _cuenta(cls, company, account_type, reconcile=None):
+        domain = [
+            *cls.env['account.account']._check_company_domain(company),
+            ('account_type', '=', account_type),
+        ]
+        if reconcile is not None:
+            domain.append(('reconcile', '=', reconcile))
+        account = cls.env['account.account'].search(domain, limit=1)
         if account:
             return account
-        return cls.env['account.account'].create({
-            'name': 'Cheques pendientes',
-            'code': '199901',
-            'account_type': 'asset_current',
-            'reconcile': True,
+        Account = cls.env['account.account'].with_company(company)
+        vals = {
+            'name': 'Cuenta de prueba %s' % account_type,
+            'code': Account._search_new_account_code('999'),
+            'account_type': account_type,
             'company_ids': [Command.link(company.id)],
+        }
+        if reconcile:
+            vals['reconcile'] = True
+        return Account.create(vals)
+
+    @classmethod
+    def _codigo_diario(cls):
+        taken = set(cls.env['account.journal'].search([
+            ('company_id', '=', cls.company.id),
+        ]).mapped('code'))
+        while True:
+            code = ('K' + uuid.uuid4().hex[:4]).upper()
+            if code not in taken:
+                return code
+
+    @classmethod
+    def _diario_banco(cls, name):
+        return cls.env['account.journal'].create({
+            'name': name,
+            'code': cls._codigo_diario(),
+            'type': 'bank',
+            'company_id': cls.company.id,
         })
 
     @classmethod
-    def _diario_banco(cls, name, code):
-        return cls.env['account.journal'].create({
-            'name': name,
-            'code': code,
-            'type': 'bank',
-            'company_id': cls.company_data['company'].id,
-        })
+    def _transferencia_primera(cls, journal, transferencia, cheques):
+        otras = journal.outbound_payment_method_line_ids - transferencia - cheques
+        if otras:
+            otras.write({'sequence': 100})
+        transferencia.sequence = 1
+        cheques.sequence = 20
 
     @classmethod
     def _linea_metodo(cls, journal, code, name, sequence, outstanding=None):
